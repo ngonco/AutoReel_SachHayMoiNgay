@@ -24,12 +24,15 @@ if getattr(sys, 'frozen', False):
     BASE_DIR = next((p for p in [exe_dir, exe_dir.parent, exe_dir.parent.parent, Path.cwd()] if (p / 'CLIP TƯỢNG PHẬT LQ').is_dir()), exe_dir)
 else:
     BASE_DIR = Path(__file__).resolve().parent
+if '--workspace' in sys.argv:
+    BASE_DIR=Path(sys.argv[sys.argv.index('--workspace')+1]).resolve()
+    if not BASE_DIR.is_dir():raise ValueError('Thư mục dữ liệu không tồn tại.')
 
 from core.pmdx_reader import get_all_quotes
 from core.video_detector import VideoDetector
 from core.planner import build_plan, load_plan
 from core.renderer import scene_overlay
-from core.settings import normalize_settings
+from core.settings import normalize_settings, save_settings_patch, load_settings
 from core.jobs import JobManager
 
 video_detector = None
@@ -39,7 +42,7 @@ settings_lock = threading.Lock()
 
 def read_settings():
     try:
-        return normalize_settings(json.loads((BASE_DIR / 'settings.json').read_text(encoding='utf-8-sig')))
+        return load_settings(BASE_DIR)
     except (OSError, ValueError, TypeError):
         return normalize_settings()
 
@@ -60,7 +63,12 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
             if path == '/api/quotes':
                 return self._send_json(get_all_quotes(str(BASE_DIR)))
             if path == '/api/videos':
-                return self._send_json(video_detector.scan_all_videos())
+                videos=video_detector.scan_all_videos()
+                saved_path=read_settings().get('video_path','')
+                if saved_path and Path(saved_path).is_file() and all(v['path']!=saved_path for v in videos):
+                    try:videos.append(video_detector.analyze_video(saved_path))
+                    except (OSError,ValueError):pass
+                return self._send_json(videos)
             if path == '/api/settings':
                 return self._send_json(read_settings())
             if path.startswith('/api/jobs/'):
@@ -106,11 +114,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 raise ValueError('Yêu cầu quá lớn.')
             body = json.loads(self.rfile.read(length).decode('utf-8') or '{}')
             if path == '/api/settings':
-                settings = normalize_settings(body)
-                with settings_lock:
-                    temp = BASE_DIR / 'settings.json.tmp'
-                    temp.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding='utf-8')
-                    temp.replace(BASE_DIR / 'settings.json')
+                settings = save_settings_patch(BASE_DIR, body)
                 return self._send_json(dict(success=True, settings=settings))
             if path == '/api/plan':
                 return self._send_json(build_plan(body, BASE_DIR, video_detector))
@@ -128,8 +132,8 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 videos = video_detector.scan_all_videos()
                 if not videos:
                     raise ValueError('Kho video trống.')
-                plans = [build_plan({**body, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']}, BASE_DIR, video_detector) for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
-                job = jobs.batch(plans)
+                items = [{**body, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
+                job = jobs.batch(items, video_detector)
                 if body.get('async'):
                     return self._send_json(job, 202)
                 while job['status'] not in ('done', 'error'):
@@ -158,7 +162,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
             pass
         except Exception as error:
             logging.exception('POST failed')
-            self._send_json(dict(success=False, error=str(error)), 400)
+            self._send_json(dict(success=False, error=str(error), code=getattr(error,'code',None)), 409 if getattr(error,'code',None)=='footage_conflict' else 400)
 
     def _send_json(self, data, status=200):
         content = json.dumps(data, ensure_ascii=False).encode('utf-8')
@@ -248,8 +252,8 @@ def main():
         if not videos:
             raise ValueError('Kho video trống.')
         settings = read_settings()
-        plans = [build_plan({**settings, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']}, BASE_DIR, video_detector) for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
-        job = jobs.batch(plans)
+        items = [{**settings, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
+        job = jobs.batch(items, video_detector)
         while job['status'] not in ('done', 'error'):
             time.sleep(.5)
             job = jobs.get(job['job_id'])

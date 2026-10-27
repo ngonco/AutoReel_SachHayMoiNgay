@@ -1,83 +1,99 @@
-"""A single render worker keeps memory bounded and exposes thread-safe job state."""
+"""Queued rendering with persistent footage reservations and a cross-app export lock."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import threading
 import uuid
-from core.planner import load_plan
+from core.planner import load_plan,build_plan
 from core.renderer import render_plan
+from core.footage_pool import FootagePool,FootageConflict
+from core.persistence import file_mutex
 
 
 class JobManager:
     def __init__(self, workspace_dir):
-        self.workspace_dir = Path(workspace_dir)
-        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='reel-render')
-        self.lock = threading.RLock()
-        self.jobs = {}
-        self.pending = {}
+        self.workspace_dir=Path(workspace_dir)
+        self.executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='reel-render')
+        self.lock=threading.RLock();self.jobs={};self.pending={}
+        self.pool=FootagePool(workspace_dir)
 
-    def get(self, job_id):
+    def get(self,job_id):
         with self.lock:
-            if job_id not in self.jobs:
-                raise ValueError('Không tìm thấy tác vụ. Hãy thử lại.')
+            if job_id not in self.jobs:raise ValueError('Không tìm thấy tác vụ. Hãy thử lại.')
             return dict(self.jobs[job_id])
 
-    def submit(self, plan, preview=False, output_path=None):
-        key = ('preview' if preview else 'export', plan['plan_id'])
+    def submit(self,plan,preview=False,output_path=None):
+        key=('preview' if preview else 'export',plan['plan_id'])
         with self.lock:
-            if key in self.pending:
-                return self.get(self.pending[key])
-            job_id = uuid.uuid4().hex
-            target = Path(output_path) if output_path else (self.workspace_dir / '.cache' / 'previews' / (plan['plan_id'] + '.mp4') if preview else self.workspace_dir / 'output_videos' / f'Reel_{job_id[:12]}.mp4')
-            self.jobs[job_id] = dict(job_id=job_id, status='queued', progress=0, message='Đang chờ dựng…', plan_id=plan['plan_id'])
-            self.pending[key] = job_id
-            self.executor.submit(self._work, job_id, key, plan, target, preview)
+            if key in self.pending:return self.get(self.pending[key])
+            job_id=uuid.uuid4().hex
+            target=Path(output_path) if output_path else (self.workspace_dir/'.cache'/'previews'/(plan['plan_id']+'.mp4') if preview else self.workspace_dir/'output_videos'/f'Reel_{job_id[:12]}.mp4')
+            if not preview:self.pool.reserve(plan,job_id)
+            self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,message='Đang chờ dựng…',plan_id=plan['plan_id'])
+            self.pending[key]=job_id
+            try:self.executor.submit(self._work,job_id,key,plan,target,preview)
+            except Exception:
+                if not preview:self.pool.finish(job_id,False)
+                self.pending.pop(key,None);raise
             return self.get(job_id)
 
-    def _work(self, job_id, key, plan, target, preview):
-        def progress(percent, message):
-            with self.lock:
-                self.jobs[job_id].update(progress=percent, message=message)
-        with self.lock:
-            self.jobs[job_id].update(status='running')
+    def _work(self,job_id,key,plan,target,preview):
+        def progress(percent,message):
+            with self.lock:self.jobs[job_id].update(progress=percent,message=message)
+        with self.lock:self.jobs[job_id].update(status='running')
         try:
-            load_plan(plan['plan_id'], self.workspace_dir)
-            if preview and target.is_file():
-                result = dict(success=True, duration=plan['duration'], plan_id=plan['plan_id'], elapsed=0, cached=True)
+            load_plan(plan['plan_id'],self.workspace_dir)
+            if preview:
+                result=dict(success=True,duration=plan['duration'],plan_id=plan['plan_id'],elapsed=0,cached=True) if target.is_file() else render_plan(plan,target,self.workspace_dir,True,progress)
             else:
-                result = render_plan(plan, target, self.workspace_dir, preview, progress)
-            result['filename'] = target.name
-            result['url'] = ('/api/preview_video/' if preview else '/api/rendered_video/') + target.name
-            with self.lock:
-                self.jobs[job_id].update(status='done', progress=100, message='Đã sẵn sàng.', result=result)
+                progress(0,'Đang chờ lượt xuất an toàn…')
+                with file_mutex(self.workspace_dir/'reel_export.lock',timeout=7200):
+                    self.pool.validate_export(job_id)
+                    result=render_plan(plan,target,self.workspace_dir,False,progress)
+                    self.pool.finish(job_id,True)
+            result['filename']=target.name
+            result['url']=('/api/preview_video/' if preview else '/api/rendered_video/')+target.name
+            with self.lock:self.jobs[job_id].update(status='done',progress=100,message='Đã sẵn sàng.',result=result)
         except Exception as error:
             import logging
             logging.exception('Render failed')
-            with self.lock:
-                self.jobs[job_id].update(status='error', error=str(error), message=str(error))
+            if not preview:self.pool.finish(job_id,False)
+            with self.lock:self.jobs[job_id].update(status='error',error=str(error),code=getattr(error,'code',None),message=str(error))
         finally:
-            with self.lock:
-                self.pending.pop(key, None)
+            with self.lock:self.pending.pop(key,None)
 
-    def batch(self, plans):
-        job_id = uuid.uuid4().hex
-        with self.lock:
-            self.jobs[job_id] = dict(job_id=job_id, status='queued', progress=0, message='Đang chờ xuất hàng loạt…')
-        self.executor.submit(self._batch_work, job_id, plans)
+    def batch(self,items,detector=None):
+        if detector is None:
+            from core.video_detector import VideoDetector
+            detector=VideoDetector(self.workspace_dir)
+        job_id=uuid.uuid4().hex
+        with self.lock:self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,message='Đang chờ xuất hàng loạt…')
+        self.executor.submit(self._batch_work,job_id,items,detector)
         return self.get(job_id)
 
-    def _batch_work(self, job_id, plans):
-        files, failures = [], []
-        with self.lock:
-            self.jobs[job_id]['status'] = 'running'
-        for i, plan in enumerate(plans):
-            def report(value, message):
-                with self.lock:
-                    self.jobs[job_id].update(progress=int((i + value / 100) / len(plans) * 100), message=f'Reel {i + 1}/{len(plans)}: {message}')
+    def _batch_work(self,job_id,items,detector):
+        files,failures=[],[]
+        with self.lock:self.jobs[job_id]['status']='running'
+        for i,item in enumerate(items):
+            token=f'{job_id}_{i}'
+            def report(value,message):
+                with self.lock:self.jobs[job_id].update(progress=int((i+value/100)/len(items)*100),message=f'Reel {i+1}/{len(items)}: {message}')
             try:
-                target = self.workspace_dir / 'output_videos' / f'Batch_{job_id[:8]}_Cau_{i + 1:02d}.mp4'
-                render_plan(plan, target, self.workspace_dir, progress_callback=report)
+                # Build each batch plan after the previous reel has committed its footage turns.
+                payload={**item['settings'],'quote':item['quote'],'video_path':item['scenes'][0]['video_path']} if 'scenes' in item else item
+                with file_mutex(self.workspace_dir/'reel_export.lock',timeout=7200):
+                    for attempt in range(3):
+                        plan=build_plan(payload,self.workspace_dir,detector)
+                        try:
+                            self.pool.reserve(plan,token);self.pool.validate_export(token)
+                            break
+                        except FootageConflict:
+                            self.pool.finish(token,False)
+                            if attempt==2:raise
+                    target=self.workspace_dir/'output_videos'/f'Batch_{job_id[:8]}_Cau_{i+1:02d}.mp4'
+                    render_plan(plan,target,self.workspace_dir,progress_callback=report)
+                    self.pool.finish(token,True)
                 files.append(target.name)
             except Exception as error:
-                failures.append(dict(index=i + 1, error=str(error)))
-        with self.lock:
-            self.jobs[job_id].update(status='done', progress=100, result=dict(success=not failures, total_rendered=len(files), files=files, failures=failures), message=f'Đã xuất {len(files)}/{len(plans)} reel.')
+                self.pool.finish(token,False)
+                failures.append(dict(index=i+1,error=str(error)))
+        with self.lock:self.jobs[job_id].update(status='done',progress=100,result=dict(success=not failures,total_rendered=len(files),files=files,failures=failures),message=f'Đã xuất {len(files)}/{len(items)} reel.')

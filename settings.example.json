@@ -9,5 +9,14 @@
   "duration": 12,
   "auto_paginate": true,
   "autofit": true,
-  "music_volume": 0.85
+  "music_volume": 0.85,
+  "outline_enabled": true,
+  "outline_color": "auto",
+  "outline_width": 4,
+  "outline_blur": 8,
+  "outline_opacity": 0.85,
+  "quote": null,
+  "quote_index": 0,
+  "video_path": "",
+  "safe_zone": false
 }

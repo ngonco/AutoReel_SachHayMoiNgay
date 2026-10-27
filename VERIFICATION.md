@@ -60,3 +60,26 @@ Nguồn và tài liệu được quản lý trong repo `ngonco/AutoReel_SachHayM
 ## Quy trình đóng gói bắt buộc — 2026-10-27
 
 Đã ghi yêu cầu luôn build lại và kiểm tra EXE sau mỗi đợt sửa code vào AGENTS.md, system_map.md và README.md. Đợt cập nhật này chỉ sửa tài liệu; không đổi code hoặc bản EXE v3 đã kiểm tra. Kiểm tra bằng `git diff --check` và xem nội dung diff; không chạy lại build hay test runtime cho thay đổi tài liệu.
+
+
+## Bổ sung v4 — Viền chữ mềm có thể chỉnh (2026-10-27)
+
+- **10/10 unit test đạt**, gồm alpha viền nhạt dần theo khoảng cách, không che phần mực đặc, giữ màu/nét glyph sắc, bật/tắt/opacity 0, kiểm tra màu và giới hạn settings. Giữ các kiểm tra nội dung, xuống dòng, timeline và footer năm theme.
+- Đã xem bảng ảnh 5 theme × 3 mức viền (tắt/mặc định/đậm): `test_renders/verification/v4_outline_comparison.jpg`. Chế độ màu tự động dùng màu tối với chữ sáng, màu giấy với chữ tối ở Sen Giấy; có màu tự chọn.
+- Đóng gói thành công `AutoReelSachHay_v4.exe` và bản sao dist, mở qua BAT; kích thước **204.326.486 byte**, SHA256 `A8EAC4CC0EFA80C207D01C063C0CCBFC14FB7DB614CEE70776DD47207674C4C3`. Giữ nguyên các phiên cũ.
+- `verify_outline.py --base http://127.0.0.1:8772` đạt trên EXE v4: đổi cấu hình viền tạo plan_id mới; PNG viền bật khác viền tắt; opacity 0 giống tắt; màu trắng khác màu tối.
+- Đã xuất và giải mã toàn bộ `output_videos/verification/v4_soft_outline_preview.mp4` (540×960) và `v4_soft_outline_fullhd.mp4` (1080×1920), cùng **5,0 giây**. Cấu hình mẫu: viền 7 px, nhòe 10 px, đậm 90%; ảnh trích xuất `test_renders/verification/v4_outline_export.jpg`.
+- Kiểm tra UI v4: bật/tắt và các thanh viền hoạt động. Kết quả khôi phục cài đặt chưa ổn định khi các phiên cũ còn mở; phần tự lưu đã được thay thế và kiểm tra đầy đủ ở v5 bên dưới.
+
+
+## Bổ sung v5 — Tự lưu đầy đủ và chống trùng footage (2026-10-27)
+
+- **22/22 unit test đạt**. Kiểm tra quote nguyên văn/trailing Enter, patch từng field, thứ tự request, nhiều luồng lưu, nhập settings cũ và tránh phiên cũ ghi đè session mới; giữ toàn bộ kiểm tra viền, font và footer.
+- Footage tests: SHA256 gộp file sao chép, hết kho mới quay vòng, preview không tiêu hao lượt, reservation tránh trùng khi queue đồng thời, trả lượt khi lỗi/tiến trình đã thoát; batch lấy lịch sử cập nhật sau từng reel. Sau bổ sung retry khi xung đột, chạy lại **12/12 test persistence/job đạt**.
+- Kiểm tra cú pháp Python/JavaScript đạt. Các bài kiểm tra atomic rename/lock chạy ở môi trường Windows có quyền ghi đầy đủ; không thay atomic write bằng ghi trực tiếp khi môi trường hạn chế chặn rename.
+- Build EXE v5 thành công, kích thước **204.342.396 byte**, SHA256 `8FD92F9B35A8EE68BFF6E5AF9D9DB54C57919AB6D507381CFBB1C9E4B5D4EBCB`. BAT/VBS ưu tiên v5, bản gốc và các phiên cũ giữ nguyên.
+- `verify_v5.py --exe AutoReelSachHay_v5.exe --hold`: đạt trên profile riêng với 3 clip màu. Đã xuất 2 reel đơn + 2 reel batch Full HD, probe và giải mã toàn bộ, đối chiếu màu frame: ba lượt đầu khác nhau, lượt thứ tư mới quay vòng. Preview không tăng counts; plan đã tiêu hao bị từ chối 409.
+- Đã đóng rồi khởi động lại chính EXE thử: draft có dòng trống/trailing Enter, clip đã chọn, các setting và lịch sử footage được giữ nguyên. Công cụ chỉ đóng tiến trình thử do nó tạo; không thay đổi profile người dùng.
+- Kiểm tra UI EXE: sửa quote thành ba dòng, tăng viền 9→10, tắt safe zone, chờ báo Đã lưu tự động rồi reload: giữ đúng ba dòng và trailing Enter, viền 10 px, safe zone tắt. Thử gõ hai dòng rồi reload ngay trước debounce cũng khôi phục đủ nội dung.
+- Bản thử và báo cáo chi tiết ở `.cache/v5_smoke_1793076959054826600/verification.json`; không đưa dữ liệu thử hoặc session/history cá nhân lên Git.
+- Mở bản v5 qua BAT với kho thật: hiển thị 59/59 footage chưa dùng, viền mềm và báo tự lưu hoạt động. Ảnh bàn giao `test_renders/verification/v5_studio.png`. Chưa đốt lượt kho thật trong bài thử; lịch sử chỉ bắt đầu ghi các lần xuất v5.

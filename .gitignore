@@ -32,3 +32,13 @@ settings.json.tmp
 .codex/
 .agents/
 .aws/
+
+footage_usage.json
+footage_usage.lock
+footage_usage.json.*.tmp
+reel_export.lock
+settings.lock
+settings.json.*.tmp
+session_state.json
+session_state.lock
+session_state.json.*.tmp

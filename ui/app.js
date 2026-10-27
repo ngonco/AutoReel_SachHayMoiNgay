@@ -7,17 +7,56 @@ const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null,
   revision: 0, planPromise: null, selectedScene: 0, loadedPlan: null, loadedKind: null,
   lastRenderedUrl: null, previewUrl: null, busyPreview: false, ready: false,
   settings: {credit_size:20, quote_size:68, theme_index:0, pos_mode:'auto', vertical_offset:0,
-    shade:.7, duration:12, auto_paginate:true, autofit:true, music_volume:.85}};
+    shade:.7, duration:12, auto_paginate:true, autofit:true, music_volume:.85,
+    outline_enabled:true, outline_color:'auto', outline_width:4, outline_blur:8, outline_opacity:.85}};
 let saveTimer, planTimer;
+let saving=false, savePending=false, lastSavedSettings={}, saveSequence=0;
+const saveClientId=crypto.randomUUID();
 
 async function api(path, body) {
   const response = await fetch(path, body === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const data = await response.json();
-  if (!response.ok || data.success === false) throw new Error(data.error || 'Không thực hiện được yêu cầu.');
+  if (!response.ok || data.success === false) {const error=new Error(data.error || 'Không thực hiện được yêu cầu.');error.code=data.code;throw error;}
   return data;
 }
 function payload() {
-  return {...state.settings, quote:$('quoteInput').value.normalize('NFC'), credit:$('creditInput').value.normalize('NFC'), video_path:state.currentVideo?.path || ''};
+  return {...state.settings, quote:$('quoteInput').value.normalize('NFC'), quote_index:state.currentQuoteIndex,
+    credit:$('creditInput').value.normalize('NFC'), video_path:state.currentVideo?.path || '', safe_zone:$('safeZoneCheck').checked};
+}
+function changedSettings(snapshot) {
+  return Object.fromEntries(Object.entries(snapshot).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(lastSavedSettings[key])));
+}
+function queueSave() {
+  if(!state.ready)return;
+  savePending=true;$('saveStatus').textContent='Đang lưu…';
+  clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,250);
+}
+async function flushSaves() {
+  if(saving)return;
+  saving=true;let failed=false;
+  try {
+    while(savePending) {
+      savePending=false;
+      const snapshot=JSON.parse(JSON.stringify(payload())),patch=changedSettings(snapshot);
+      if(Object.keys(patch).length)await api('/api/settings',{_client_id:saveClientId,_sequence:++saveSequence,_patch:patch});
+      lastSavedSettings=snapshot;
+    }
+    $('saveStatus').textContent='Đã lưu tự động';
+  } catch(error) {
+    failed=true;savePending=true;$('saveStatus').textContent='Chưa lưu được; đang tự thử lại: '+error.message;
+  } finally {
+    saving=false;
+    if(savePending){clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,failed?2500:0);}
+  }
+}
+function saveBeforeExit() {
+  if(!state.ready)return;
+  clearTimeout(saveTimer);
+  const patch=changedSettings(payload());
+  if(!Object.keys(patch).length)return;
+  const body=JSON.stringify({_client_id:saveClientId,_sequence:++saveSequence,_patch:patch});
+  if(!navigator.sendBeacon('/api/settings',new Blob([body],{type:'application/json'})))
+    fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
 }
 function status(message, error=false) {
   $('playbackStatus').textContent = message;
@@ -43,8 +82,7 @@ function invalidate() {
   status('Thiết lập đã đổi. Đang cập nhật cảnh; bản xem trước sẽ dựng lại khi bấm Play.');
   clearTimeout(planTimer);
   planTimer = setTimeout(() => ensurePlan().catch(error => status(error.message, true)), 350);
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => api('/api/settings', payload()).catch(error => status('Chưa lưu được cài đặt: ' + error.message, true)), 450);
+  queueSave();
 }
 async function ensurePlan() {
   if (state.plan) return state.plan;
@@ -70,6 +108,8 @@ function renderScenes() {
   $('totalDuration').textContent = `Tổng reel: ${timeLabel(plan.duration)} · tối thiểu ${state.settings.duration}s`;
   $('btnRenderSingle').textContent = `▶ XUẤT REEL · ${timeLabel(plan.duration)}`;
   $('previewStyleName').textContent = THEME_NAMES[state.settings.theme_index];
+  const first=plan.scenes[0],pool=plan.footage_pool;
+  if(pool)$('currentVideoName').textContent=`Cảnh đầu: ${first.video_name} · ${pool.remaining}/${pool.total} clip chưa dùng ở lượt này.`+(pool.preferred_replaced?' Clip đã chọn được đổi theo lượt footage chống trùng.':'');
   $('sceneList').replaceChildren();
   $('slideTabs').replaceChildren();
   plan.scenes.forEach((scene, index) => {
@@ -160,7 +200,7 @@ function selectVideo(video) {
 }
 function applySettings() {
   const s=state.settings;
-  const sliders={verticalSlider:['vertical_offset','verticalVal',' px',1],shadeSlider:['shade','shadeVal','%',100],quoteSizeSlider:['quote_size','quoteSizeVal','',1],creditSizeSlider:['credit_size','creditSizeVal','',1],musicVolSlider:['music_volume','musicVolVal','%',100]};
+  const sliders={verticalSlider:['vertical_offset','verticalVal',' px',1],shadeSlider:['shade','shadeVal','%',100],quoteSizeSlider:['quote_size','quoteSizeVal','',1],creditSizeSlider:['credit_size','creditSizeVal','',1],musicVolSlider:['music_volume','musicVolVal','%',100],outlineWidthSlider:['outline_width','outlineWidthVal',' px',1],outlineBlurSlider:['outline_blur','outlineBlurVal',' px',1],outlineOpacitySlider:['outline_opacity','outlineOpacityVal','%',100]};
   Object.entries(sliders).forEach(([id,[key,label,suffix,factor]])=>{
     $(id).value=Math.round(s[key]*factor);$(label).textContent=$(id).value+suffix;
     $(id).oninput=()=>{s[key]=Number($(id).value)/factor;$(label).textContent=$(id).value+suffix;if(key==='vertical_offset')$('verticalNumber').value=s[key];invalidate();};
@@ -175,6 +215,15 @@ function applySettings() {
     $('verticalVal').textContent=s.vertical_offset+' px';
     invalidate();
   };
+  const outlineControls=['outlineAutoColorCheck','outlineColorInput','outlineWidthSlider','outlineBlurSlider','outlineOpacitySlider'];
+  const setOutlineDisabled=()=>outlineControls.forEach(id=>{$(id).disabled=!s.outline_enabled;});
+  $('outlineEnabledCheck').checked=s.outline_enabled;
+  $('outlineEnabledCheck').onchange=()=>{s.outline_enabled=$('outlineEnabledCheck').checked;setOutlineDisabled();invalidate();};
+  $('outlineAutoColorCheck').checked=s.outline_color==='auto';
+  $('outlineColorInput').value=s.outline_color==='auto'?(s.theme_index===4?'#fff8e9':'#101018'):s.outline_color;
+  $('outlineColorInput').oninput=()=>{s.outline_color=$('outlineColorInput').value;$('outlineAutoColorCheck').checked=false;invalidate();};
+  $('outlineAutoColorCheck').onchange=()=>{s.outline_color=$('outlineAutoColorCheck').checked?'auto':$('outlineColorInput').value;applySettings();invalidate();};
+  setOutlineDisabled();
   [['autofitCheck','autofit'],['autoPaginateCheck','auto_paginate']].forEach(([id,key])=>{$(id).checked=s[key];$(id).onchange=()=>{s[key]=$(id).checked;invalidate();};});
   document.querySelectorAll('.pos-chip').forEach(el=>{el.classList.toggle('active',el.dataset.pos===s.pos_mode);el.onclick=()=>{s.pos_mode=el.dataset.pos;applySettings();invalidate();};});
   document.querySelectorAll('.template-btn').forEach(el=>{el.classList.toggle('active',Number(el.dataset.theme)===s.theme_index);el.onclick=()=>{s.theme_index=Number(el.dataset.theme);applySettings();invalidate();};});
@@ -188,7 +237,7 @@ async function pollJob(job, progress) {
     job=await api(`/api/jobs/${job.job_id}`);
   }
   progress?.(job);
-  if(job.status==='error') throw new Error(job.error);
+  if(job.status==='error') {const error=new Error(job.error);error.code=job.code;throw error;}
   return job.result;
 }
 async function playUrl(url, kind, plan) {
@@ -233,8 +282,14 @@ function renderProgress(job) {
 async function renderSingle() {
   const button=$('btnRenderSingle');button.disabled=true;
   try {
-    const plan=await ensurePlan(), revision=state.revision;
-    const result=await pollJob(await api('/api/render',{plan_id:plan.plan_id,async:true}),renderProgress);
+    let plan,result,revision;
+    for(let attempt=0;attempt<2;attempt++) {
+      clearTimeout(planTimer);state.revision++;state.plan=null;state.planPromise=null;state.loadedPlan=null;showStatic();
+      $('btnWatchRendered').style.display='none';
+      plan=await ensurePlan();revision=state.revision;
+      try {result=await pollJob(await api('/api/render',{plan_id:plan.plan_id,async:true}),renderProgress);break;}
+      catch(error){if(error.code!=='footage_conflict'||attempt===1)throw error;}
+    }
     $('progressStatus').textContent=`Đã xuất ${timeLabel(result.duration)} · ${result.filename}`;
     if(revision===state.revision) {state.lastRenderedUrl=result.url;$('btnWatchRendered').style.display='inline-flex';}
   } catch(error) {$('progressBox').classList.add('active');$('progressStatus').textContent=error.message;}
@@ -254,10 +309,13 @@ async function initApp() {
   showStatic();status('Đang đọc nội dung và kho clip…');
   try {
     const [quotes,videos,settings]=await Promise.all([api('/api/quotes'),api('/api/videos'),api('/api/settings')]);
-    state.quotes=quotes;state.videos=videos;state.settings=settings;
+    state.quotes=quotes;state.videos=videos;state.settings=settings;lastSavedSettings=JSON.parse(JSON.stringify(settings));
     $('creditInput').value=settings.credit;
-    populateQuotes();loadQuote(0);
-    if(videos.length) selectVideo(videos[0]);
+    populateQuotes();loadQuote(Math.min(settings.quote_index||0,Math.max(0,quotes.length-1)));
+    if(settings.quote!==null && typeof settings.quote==='string')$('quoteInput').value=settings.quote;
+    if(videos.length) selectVideo(videos.find(v=>v.path===settings.video_path)||videos[0]);
+    $('safeZoneCheck').checked=!!settings.safe_zone;
+    $('safeZoneOverlay').classList.toggle('visible',!!settings.safe_zone);
     applySettings();
     $('quoteSelect').onchange=()=>loadQuote(Number($('quoteSelect').value));
     $('btnPrevQuote').onclick=()=>loadQuote(state.currentQuoteIndex-1);
@@ -270,7 +328,7 @@ async function initApp() {
       try {const result=await api('/api/select_video',{});if(result.video){if(!state.videos.some(v=>v.path===result.video.path))state.videos.push(result.video);selectVideo(result.video);}}
       catch(error){status(error.message,true);}
     };
-    $('safeZoneCheck').onchange=()=>$('safeZoneOverlay').classList.toggle('visible',$('safeZoneCheck').checked);
+    $('safeZoneCheck').onchange=()=>{$('safeZoneOverlay').classList.toggle('visible',$('safeZoneCheck').checked);queueSave();};
     const sample=new Audio('/assets/thien_chuong.wav');
     $('btnTestAudio').onclick=()=>{sample.volume=state.settings.music_volume;sample.currentTime=0;sample.play().catch(error=>status(error.message,true));};
     $('btnTogglePlayVideo').onclick=togglePlayback;
@@ -290,7 +348,9 @@ async function initApp() {
       $('playbackTime').textContent=`${timeLabel(player.currentTime)} / ${timeLabel(state.plan.duration)}`;
     };
     state.ready=true;
+    queueSave();
     await ensurePlan();
   } catch(error) {status(error.message,true);}
 }
 window.addEventListener('DOMContentLoaded',initApp);
+window.addEventListener('pagehide',saveBeforeExit);

@@ -2,13 +2,25 @@ Set WshShell = CreateObject("WScript.Shell")
 Set FSO = CreateObject("Scripting.FileSystemObject")
 root = FSO.GetParentFolderName(WScript.ScriptFullName)
 WshShell.CurrentDirectory = root
+strPathV5 = root & "\AutoReelSachHay_v5.exe"
+strPathDistV5 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v5.exe"
+strPathV4 = root & "\AutoReelSachHay_v4.exe"
+strPathDistV4 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v4.exe"
 strPathV3 = root & "\AutoReelSachHay_v3.exe"
 strPathDistV3 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v3.exe"
 strPathNew = root & "\AutoReelSachHay_v2.exe"
 strPathRoot = root & "\AutoReelSachHay.exe"
 strPathDistNew = root & "\dist\AutoReelSachHay\AutoReelSachHay_v2.exe"
 strPathDist = root & "\dist\AutoReelSachHay\AutoReelSachHay.exe"
-If FSO.FileExists(strPathV3) Then
+If FSO.FileExists(strPathV5) Then
+    WshShell.Run """" & strPathV5 & """", 1, False
+ElseIf FSO.FileExists(strPathDistV5) Then
+    WshShell.Run """" & strPathDistV5 & """", 1, False
+ElseIf FSO.FileExists(strPathV4) Then
+    WshShell.Run """" & strPathV4 & """", 1, False
+ElseIf FSO.FileExists(strPathDistV4) Then
+    WshShell.Run """" & strPathDistV4 & """", 1, False
+ElseIf FSO.FileExists(strPathV3) Then
     WshShell.Run """" & strPathV3 & """", 1, False
 ElseIf FSO.FileExists(strPathDistV3) Then
     WshShell.Run """" & strPathDistV3 & """", 1, False

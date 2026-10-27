@@ -674,3 +674,11 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 #verticalNumber {width:100px;padding:7px 10px;background:#0d1422;border:1px solid #455165;border-radius:8px;color:#f7e6c7;font:inherit;font-size:13px;}
 #verticalNumber:focus {outline:2px solid var(--accent-gold);outline-offset:1px;}
 #quoteLineHelp {margin-top:8px;line-height:1.6;}
+.outline-settings {margin:18px 0 0;padding:14px 16px;border:1px solid #405064;border-radius:12px;min-width:0;background:rgba(0,0,0,.1);}
+.outline-settings legend {padding:0 8px;color:var(--accent-gold);font-size:13px;font-weight:700;}
+.outline-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+.outline-heading .switch-label {margin:0;}
+.outline-color-label {display:flex;align-items:center;gap:8px;margin:0;}
+#outlineColorInput {width:46px;height:30px;padding:2px;border:1px solid #526176;border-radius:7px;background:#0d1422;cursor:pointer;}
+.outline-settings .panel-sub {margin-top:10px;line-height:1.6;}
+.outline-settings input:disabled {opacity:.4;cursor:default;}

@@ -9,3 +9,5 @@ After every completed modification session, run relevant checks, update the docu
 Do not commit source videos, generated media, cache, logs, EXE/DLL files, Microsoft fonts, personal settings or credentials. Respect `.gitignore`. Preserve user media and settings. Do not shut down the computer during tests.
 
 Use the server plan as the single source of truth for scene text, timing, video selection, speed and layout. Preview and export must use the same renderer. Bump `PLAN_VERSION` when changing render/layout/planning behavior.
+
+Preserve `session_state.json` (autosaved draft/settings) and `footage_usage.json` (content-based footage turns) across upgrades. Production exports must go through JobManager or the tracked render wrapper with footage reservation/commit; low-level `render_plan` alone is for preview/isolated verification. Preview must not consume footage turns. Never reset real footage history to work around a conflict; use isolated `--workspace` profiles for mutation tests.

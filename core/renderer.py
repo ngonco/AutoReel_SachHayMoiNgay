@@ -5,8 +5,9 @@ from pathlib import Path
 import tempfile
 import time
 import unicodedata
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops, ImageColor
 from core.media import resource_path, tool_path, run_media
+from core.settings import normalize_settings
 
 W, H = 1080, 1920
 SAFE_BOTTOM = int(H * .86)
@@ -74,9 +75,46 @@ def layout_overlay(quote_text, credit_text, theme_index=0, pos_mode='bottom', ve
                 credit_y=top + 80 + qh + 40, quote_size=qsize)
 
 
+def soft_outline(mask, style):
+    """Colored outer halo: dilate glyph alpha, feather, then exclude the sharp glyph itself."""
+    layer = Image.new('RGBA', mask.size)
+    bounds = mask.getbbox()
+    width, blur = int(style['outline_width']), float(style['outline_blur'])
+    if not bounds or not style['outline_enabled'] or style['outline_opacity'] <= 0 or (width == 0 and blur == 0):
+        return layer
+    pad = width + math.ceil(blur * 3) + 2
+    box = (max(0, bounds[0] - pad), max(0, bounds[1] - pad),
+           min(mask.width, bounds[2] + pad), min(mask.height, bounds[3] + pad))
+    ink = mask.crop(box)
+    expanded = ink.filter(ImageFilter.MaxFilter(width * 2 + 1)) if width else ink
+    feathered = expanded.filter(ImageFilter.GaussianBlur(blur)) if blur else expanded
+    alpha = ImageChops.subtract(feathered, ink).point([round(i * style['outline_opacity']) for i in range(256)])
+    color = '#101018' if style['outline_color'] == 'auto' else style['outline_color']
+    colored = Image.new('RGBA', ink.size, ImageColor.getrgb(color) + (0,))
+    colored.putalpha(alpha)
+    layer.paste(colored, box[:2])
+    return layer
+
+
+def paint_outlined_text(image, entries, font, fill, style):
+    mask = Image.new('L', image.size)
+    pen = ImageDraw.Draw(mask)
+    for x, y, text in entries:
+        pen.text((x, y), text, font=font, anchor='lt', fill=255)
+    image = Image.alpha_composite(image, soft_outline(mask, style))
+    ink = Image.new('RGBA', image.size, fill)
+    ink.putalpha(mask if fill[3] == 255 else mask.point([round(i * fill[3] / 255) for i in range(256)]))
+    return Image.alpha_composite(image, ink)
+
+
 def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', header_text='', theme_index=0,
                    pos_mode='bottom', vertical_offset=0, quote_size=68, credit_size=20,
-                   shade=.70, autofit=True, workspace_dir=None):
+                   shade=.70, autofit=True, workspace_dir=None, outline_enabled=True,
+                   outline_color='auto', outline_width=4, outline_blur=8, outline_opacity=.85):
+    style = normalize_settings(dict(outline_enabled=outline_enabled, outline_color=outline_color,
+                                    outline_width=outline_width, outline_blur=outline_blur, outline_opacity=outline_opacity))
+    if style['outline_color'] == 'auto':
+        style['outline_color'] = '#fff8e9' if theme_index == 4 else '#101018'
     layout = layout_overlay(quote_text, credit_text, theme_index, pos_mode, vertical_offset, quote_size, credit_size, autofit, workspace_dir)
     im = Image.new('RGBA', (W, H))
     draw = ImageDraw.Draw(im)
@@ -114,21 +152,28 @@ def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', h
         draw.ellipse((206, ornament_y - 3, 212, ornament_y + 3), fill=gold)
     color = (64, 55, 43, 255) if paper else ((255, 251, 242, 255) if theme_index in (1, 3) else (250, 230, 191, 255))
     y = layout['quote_y']
+    entries = []
     for line in layout['lines']:
         width = draw.textlength(line, font=layout['qfont'])
         x = (1036 - width) / 2 if centered else 134
-        if not paper:
-            draw.text((x + 2, y + 3), line, font=layout['qfont'], anchor='lt', fill=(0, 0, 0, 180))
-        draw.text((x, y), line, font=layout['qfont'], anchor='lt', fill=color)
+        entries.append((x, y, line))
         y += layout['qline']
+    im = paint_outlined_text(im, entries, layout['qfont'], color, style)
+    draw = ImageDraw.Draw(im)
     if layout['credits']:
         y = layout['credit_y']
         line_start = 438 if centered else 134
         draw.line((line_start, y - 20, line_start + 160, y - 20), fill=accent, width=1)
+        entries = []
         for line in layout['credits']:
             x = (1036 - draw.textlength(line, font=layout['cfont'])) / 2 if centered else 134
-            draw.text((x, y), line, font=layout['cfont'], anchor='lt', fill=(111, 83, 49, 255) if paper else (238, 220, 187, 255))
+            entries.append((x, y, line))
             y += layout['cline']
+        # Keep the smaller source text legible without an oversized halo.
+        ratio = min(1., credit_size / layout['quote_size'])
+        credit_style = {**style, 'outline_width': round(style['outline_width'] * ratio),
+                        'outline_blur': style['outline_blur'] * ratio}
+        im = paint_outlined_text(im, entries, layout['cfont'], (111, 83, 49, 255) if paper else (238, 220, 187, 255), credit_style)
     return im
 
 
@@ -136,7 +181,8 @@ def scene_overlay(plan, scene, workspace_dir):
     s = plan['settings']
     return render_overlay(scene['text'], s['credit'], theme_index=s['theme_index'], pos_mode=scene['resolved_pos'],
                           vertical_offset=s['vertical_offset'], quote_size=s['quote_size'], credit_size=s['credit_size'],
-                          shade=s['shade'], autofit=s['autofit'], workspace_dir=workspace_dir)
+                          shade=s['shade'], autofit=s['autofit'], workspace_dir=workspace_dir,
+                          **{k: s[k] for k in ('outline_enabled', 'outline_color', 'outline_width', 'outline_blur', 'outline_opacity')})
 
 
 def _execute(cmd):
@@ -221,16 +267,33 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
 def render_reel_video(background_video_path, quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày',
                       theme_index=0, pos_mode='auto', vertical_offset=0, quote_size=68, credit_size=20,
                       shade=.70, duration=12., auto_paginate=True, music_path=None, music_volume=.85,
-                      video_volume=0., output_path=None, workspace_dir=None, progress_callback=None, autofit=True):
+                      video_volume=0., output_path=None, workspace_dir=None, progress_callback=None, autofit=True,
+                      outline_enabled=True, outline_color='auto', outline_width=4, outline_blur=8, outline_opacity=.85):
     from core.planner import build_plan
     from core.video_detector import VideoDetector
     workspace_dir = workspace_dir or os.getcwd()
     try:
-        plan = build_plan(dict(video_path=background_video_path, quote=quote_text, credit=credit_text,
+        payload = dict(video_path=background_video_path, quote=quote_text, credit=credit_text,
                               theme_index=theme_index, pos_mode=pos_mode, vertical_offset=vertical_offset,
                               quote_size=quote_size, credit_size=credit_size, shade=shade, duration=duration,
-                              auto_paginate=auto_paginate, music_volume=music_volume, autofit=autofit), workspace_dir, VideoDetector(workspace_dir))
+                              auto_paginate=auto_paginate, music_volume=music_volume, autofit=autofit,
+                              outline_enabled=outline_enabled, outline_color=outline_color, outline_width=outline_width,
+                              outline_blur=outline_blur, outline_opacity=outline_opacity)
         output_path = output_path or str(Path(workspace_dir) / 'output_videos' / f'Reel_{time.time_ns()}.mp4')
-        return render_plan(plan, output_path, workspace_dir, progress_callback=progress_callback)
+        from core.footage_pool import FootagePool
+        from core.persistence import file_mutex
+        import uuid
+        pool=FootagePool(workspace_dir);token=uuid.uuid4().hex
+        with file_mutex(Path(workspace_dir)/'reel_export.lock',timeout=7200):
+            plan=build_plan(payload,workspace_dir,VideoDetector(workspace_dir))
+            pool.reserve(plan,token)
+            try:
+                pool.validate_export(token)
+                result=render_plan(plan,output_path,workspace_dir,progress_callback=progress_callback)
+                pool.finish(token,True)
+                return result
+            except Exception:
+                pool.finish(token,False)
+                raise
     except Exception as error:
         return dict(success=False, error=str(error), elapsed=0, output_path=str(output_path or ''))

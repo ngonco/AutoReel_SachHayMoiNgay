@@ -49,6 +49,7 @@
           </label>
           <textarea id="quoteInput" spellcheck="false" rows="4" aria-describedby="quoteLineHelp"></textarea>
           <p class="panel-sub" id="quoteLineHelp">Xuống dòng để tự chia các phần câu nói. Dòng trống được bỏ qua; chữ trong mỗi cảnh vẫn tự ngắt cho vừa khung.</p>
+          <p class="panel-sub" id="saveStatus" role="status" aria-live="polite">Đang khôi phục bản tự lưu…</p>
         </div>
 
         <div class="field">
@@ -124,6 +125,20 @@
           </div>
         </div>
 
+        <fieldset class="outline-settings">
+          <legend>Viền chữ mềm</legend>
+          <div class="outline-heading">
+            <label class="switch-label"><input type="checkbox" id="outlineEnabledCheck" checked> Bật viền mờ dần ra ngoài</label>
+            <label class="switch-label"><input type="checkbox" id="outlineAutoColorCheck" checked> Màu tự động theo mẫu</label>
+            <label class="outline-color-label" for="outlineColorInput">Màu viền <input type="color" id="outlineColorInput" value="#101018"></label>
+          </div>
+          <div class="slider-grid">
+            <div class="slider-field"><label for="outlineWidthSlider">Độ dày viền: <b id="outlineWidthVal">4 px</b></label><input type="range" id="outlineWidthSlider" min="0" max="16" value="4" step="1"></div>
+            <div class="slider-field"><label for="outlineBlurSlider">Độ nhòe ra ngoài: <b id="outlineBlurVal">8 px</b></label><input type="range" id="outlineBlurSlider" min="0" max="24" value="8" step="1"></div>
+            <div class="slider-field"><label for="outlineOpacitySlider">Độ đậm viền: <b id="outlineOpacityVal">85%</b></label><input type="range" id="outlineOpacitySlider" min="0" max="100" value="85" step="5"></div>
+          </div>
+          <p class="panel-sub">Viền mềm bao quanh câu nói và nguồn, giữ nét chữ sắc. Tăng độ nhòe để viền tan nhẹ ra ngoài.</p>
+        </fieldset>
         <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:14px;">
           <label class="switch-label">
             <input type="checkbox" id="autofitCheck" checked> Tự co chữ nếu câu quá dài
