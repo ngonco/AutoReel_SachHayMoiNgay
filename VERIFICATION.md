@@ -56,3 +56,7 @@ Nguồn và tài liệu được quản lý trong repo `ngonco/AutoReel_SachHayM
 - Kiểm tra giao diện EXE: nhập ba dòng tạo badge “3 cảnh theo dòng”; nhập bằng bàn phím −900 đồng bộ ô số, thanh trượt và nhãn, vượt được giới hạn ±350 trước đây.
 - Phiên v2 và dữ liệu người dùng được giữ nguyên. Cài đặt dùng trong kiểm tra giao diện được khôi phục sau khi kiểm tra.
 - Play trên giao diện EXE v3 với ba dòng và Y −900 đã phát hết tới cảnh 3/3, thời lượng 14,4 giây; sau đó khôi phục Y ban đầu. Ảnh bàn giao: `test_renders/verification/v3_studio.png`.
+
+## Quy trình đóng gói bắt buộc — 2026-10-27
+
+Đã ghi yêu cầu luôn build lại và kiểm tra EXE sau mỗi đợt sửa code vào AGENTS.md, system_map.md và README.md. Đợt cập nhật này chỉ sửa tài liệu; không đổi code hoặc bản EXE v3 đã kiểm tra. Kiểm tra bằng `git diff --check` và xem nội dung diff; không chạy lại build hay test runtime cho thay đổi tài liệu.

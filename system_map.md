@@ -4,8 +4,9 @@ Cập nhật: 2026-10-27. Đọc tài liệu này trước khi nâng cấp hoặ
 
 ## Quy tắc bắt buộc sau mỗi đợt chỉnh sửa
 
-**Sau khi sửa xong: chạy kiểm tra phù hợp → cập nhật tài liệu → commit → push GitHub → xác nhận remote HEAD trùng local HEAD. Luôn backup sau mỗi đợt sửa hoàn tất theo yêu cầu của chủ dự án.**
+**Sau mỗi đợt sửa code: kiểm tra phù hợp → đóng gói lại `.exe` từ code cuối cùng → kiểm tra bản EXE mới → cập nhật tài liệu → commit → push GitHub → xác nhận remote HEAD trùng local HEAD. Luôn đóng gói lại EXE và backup sau khi sửa code xong theo yêu cầu của chủ dự án.**
 
+- Bắt buộc build lại bằng `python -X utf8 build_onefile.py` sau mọi thay đổi Python, UI HTML/CSS/JavaScript, thư viện hoặc cấu hình đóng gói, kể cả sửa nhỏ. Mở qua launcher và kiểm tra chức năng vừa sửa trên chính EXE mới trước khi bàn giao; không chỉ chạy thử mã Python rồi giao EXE cũ. Nếu cần đổi tên EXE vì bản cũ đang chạy, cập nhật BAT/VBS và giữ nguyên phiên người dùng. Build hoặc kiểm tra lỗi thì báo chưa hoàn tất, không nói EXE đã được cập nhật. Chỉ sửa tài liệu thì không cần build lại.
 - Chỉ stage các file nguồn/tài liệu có chủ đích; đọc `git diff --cached` và kiểm tra bí mật trước khi push.
 - Không commit kho clip, video xuất, cache, log, EXE, DLL, font Microsoft, cài đặt cá nhân, khóa/token hoặc file `.env`. `.gitignore` đã loại chúng.
 - Không force-push, không xóa lịch sử để xử lý xung đột. Fetch và tích hợp thay đổi remote trước; dừng và báo nếu có xung đột không thể giải quyết an toàn.
