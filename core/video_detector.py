@@ -20,17 +20,32 @@ class VideoDetector:
         except (OSError, ValueError):
             self.cache = {}
 
-    def scan_all_videos(self):
+    def scan_all_videos(self, directory=None):
         with self.lock:
-            roots = [self.workspace_dir / 'CLIP TƯỢNG PHẬT LQ' / name for name in ('DỌC', 'NGANG')]
-            roots.append(self.workspace_dir / 'assets' / 'imports')
-            files = [p for root in roots if root.exists() for p in root.iterdir() if p.suffix.lower() in ('.mov', '.mp4', '.m4v', '.mkv')]
+            if directory is None:
+                from core.settings import load_settings
+                directory = load_settings(self.workspace_dir)['background_video_directory']
+            if directory:
+                root = Path(directory)
+                if not root.is_dir():
+                    raise ValueError('Folder video nền không tồn tại hoặc mất kết nối. Hãy chọn lại folder.')
+                roots = [root]
+            else:
+                roots = [self.workspace_dir / 'CLIP TƯỢNG PHẬT LQ' / name for name in ('DỌC', 'NGANG')]
+                roots.append(self.workspace_dir / 'assets' / 'imports')
+            try:
+                files = {p.resolve() for root in roots if root.exists() for p in root.rglob('*')
+                         if p.is_file() and p.suffix.lower() in ('.mov', '.mp4', '.m4v', '.mkv')}
+            except OSError as error:
+                raise ValueError('Không đọc được folder video nền. Hãy kiểm tra kết nối và quyền truy cập.') from error
             results = []
             for p in sorted(files, key=lambda x: (x.name.casefold(), str(x))):
                 try:
                     results.append(self.analyze_video(str(p)))
                 except (ValueError, OSError):
                     continue
+            if directory and not results:
+                raise ValueError('Folder video nền không có clip hợp lệ. Hãy chọn folder khác.')
             return results
 
     def analyze_video(self, video_path):

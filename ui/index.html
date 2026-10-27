@@ -19,6 +19,7 @@
       <div class="badge gold">9:16 • 1080×1920</div>
       <div class="badge">Nhiều cảnh • Đủ thời gian đọc</div>
       <button class="btn primary small" id="btnDownloadVideo" disabled title="Lưu Full HD vào nơi đã chọn; tên gợi ý từ 5 từ đầu câu nói">⬇ Tải video</button>
+      <button class="btn secondary small" id="btnBatchRender" disabled>⚡ Xuất nhiều Reel</button>
       <button class="btn small" id="btnOpenFolder">📂 Thư mục video đã xuất</button>
     </div>
   </header>
@@ -68,6 +69,16 @@
 
         <div class="field">
           <label>Chọn video (Cuộn ngang để xem tất cả clip):</label>
+          <div class="library-settings">
+            <strong>Folder video nền</strong>
+            <p id="backgroundDirectory" class="library-path">Kho mặc định</p>
+            <div class="btn-group library-actions">
+              <button class="btn small" id="btnSelectVideoDirectory">📂 Chọn folder</button>
+              <button class="btn small" id="btnRefreshVideos">↻ Quét lại</button>
+              <button class="btn small" id="btnDefaultVideoDirectory">Dùng kho mặc định</button>
+            </div>
+            <p class="panel-sub" id="libraryStatus" role="status">Tự nhớ folder; lấy cả video trong thư mục con.</p>
+          </div>
           <div class="video-carousel" id="videoCarousel">
             <!-- Render bằng JavaScript -->
           </div>
@@ -159,7 +170,7 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <label class="switch-label" style="margin:0;">
-            <input type="checkbox" id="autoPaginateCheck" checked> Tự chia cảnh khi chưa xuống dòng
+            <input type="checkbox" id="autoPaginateCheck" checked> Tự chia cảnh theo dấu câu và từ nối
           </label>
 
           <div style="display:flex; align-items:center; gap:8px;">
@@ -229,15 +240,6 @@
           <div style="display:flex; align-items:flex-end;">
             <button class="btn small" id="btnTestAudio" style="width:100%;">🔔 Nghe thử chuông thiền</button>
           </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px;">
-          <button class="btn primary" id="btnRenderSingle" style="padding:14px; font-size:14px;">
-            ▶ RENDER VIDEO HIỆN TẠI (12s)
-          </button>
-          <button class="btn secondary" id="btnBatchRender" style="padding:14px; font-size:13px;">
-            ⚡ RENDER HÀNG LOẠT (16 CÂU)
-          </button>
         </div>
 
         <!-- PROGRESS BAR -->

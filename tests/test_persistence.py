@@ -147,7 +147,7 @@ class JobFootageTests(unittest.TestCase):
                 path=root/f'{i}.mp4';path.write_bytes(f'fixture-{i}'.encode())
                 videos.append(dict(name=path.name,path=str(path),is_vertical=True,recommended_pos='bottom'))
             class Detector:
-                def scan_all_videos(self):return videos
+                def scan_all_videos(self, directory=None):return videos
             sequence=[]
             def rendered(plan,*args,**kwargs):
                 sequence.extend(s['footage_id'] for s in plan['scenes'])

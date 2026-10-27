@@ -693,3 +693,8 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 #outlineColorInput {width:46px;height:30px;padding:2px;border:1px solid #526176;border-radius:7px;background:#0d1422;cursor:pointer;}
 .outline-settings .panel-sub {margin-top:10px;line-height:1.6;}
 .outline-settings input:disabled {opacity:.4;cursor:default;}
+.library-settings {margin:12px 0 18px;padding:14px;border:1px solid var(--bg-panel-border);border-radius:10px;}
+.library-path {overflow-wrap:anywhere;font-size:12px;color:var(--text-muted);margin:8px 0;}
+.library-actions {display:flex;flex-wrap:wrap;gap:8px;}
+.top-actions {flex-wrap:wrap;max-width:100%;}
+.topbar {flex-wrap:wrap;}

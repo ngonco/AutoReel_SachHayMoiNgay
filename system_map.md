@@ -1,6 +1,6 @@
 # System map — Auto Reel Sách Hay Mỗi Ngày
 
-Cập nhật: 2026-10-27. Đọc tài liệu này trước khi nâng cấp hoặc sửa chữa. Repo backup: https://github.com/ngonco/AutoReel_SachHayMoiNgay (nhánh `main`).
+Cập nhật: 2026-10-28. Đọc tài liệu này trước khi nâng cấp hoặc sửa chữa. Repo backup: https://github.com/ngonco/AutoReel_SachHayMoiNgay (nhánh `main`).
 
 ## Quy tắc bắt buộc sau mỗi đợt chỉnh sửa
 
@@ -45,7 +45,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v7, rồi v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v8, rồi v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -95,7 +95,7 @@ Chạy phát triển: `python -X utf8 app.py`. Chạy API thử: `python -X utf8
 
 ### Chia chữ và thời gian
 
-`core.paginator`: chia theo token whitespace, giữ nguyên chữ, dấu câu và thứ tự sau NFC; quy hoạch động ưu tiên ranh giới dấu câu, tránh tách các cụm từ tiếng Việt phổ biến hoặc để hư từ ở cuối cảnh, và cân đối độ dài. Mục tiêu 12–18 từ, trần 24 từ. Nếu nội dung có từ hai dòng có chữ, mỗi dòng là đúng một cảnh thủ công, không tự chia nhỏ thêm và không ghép qua dòng; bỏ dòng trống, chuẩn hóa CRLF/NFC/khoảng trắng trong dòng. Quy tắc xuống dòng ưu tiên cả khi auto_paginate tắt. Với một dòng, vẫn dùng tự chia cảnh như trước; tắt auto_paginate thì giữ nguyên một cảnh. Bọc chữ theo chiều ngang trong textarea không phải Enter và không tạo cảnh mới. Dòng thủ công rất dài vẫn phải vừa layout; nếu không vừa sẽ yêu cầu rút ngắn hoặc thêm Enter.
+`core.paginator`: chia theo token whitespace, giữ nguyên chữ, dấu câu và thứ tự sau NFC; quy hoạch động ưu tiên ranh giới dấu câu, tránh tách các cụm từ tiếng Việt phổ biến hoặc để hư từ ở cuối cảnh, và cân đối độ dài. V8 tách dấu kết câu `. ! ? …` kể cả câu ngắn, giữ dấu ngoặc/ngoặc kép đóng và tránh viết tắt/initial/số thập phân. Ranh giới mềm tại dấu phẩy/chấm phẩy/hai chấm hoặc từ nối phù hợp mệnh đề, mỗi vế ít nhất 6 token; từ nối nằm đầu cảnh sau. Mục tiêu 12–18 từ, trần 24 từ. Nếu nội dung có từ hai dòng có chữ, mỗi dòng là đúng một cảnh thủ công, không tự chia nhỏ thêm và không ghép qua dòng; bỏ dòng trống, chuẩn hóa CRLF/NFC/khoảng trắng trong dòng. Quy tắc xuống dòng ưu tiên cả khi auto_paginate tắt. Với một dòng, vẫn dùng tự chia cảnh như trước; tắt auto_paginate thì giữ nguyên một cảnh. Bọc chữ theo chiều ngang trong textarea không phải Enter và không tạo cảnh mới. Dòng thủ công rất dài vẫn phải vừa layout; nếu không vừa sẽ yêu cầu rút ngắn hoặc thêm Enter.
 
 Thời gian đọc cơ sở mỗi phần `max(4, số từ/3 + 0.8)` giây, làm tròn lên khung 30 fps. Nếu tổng thấp hơn thời lượng tối thiểu đã chọn, phân bổ phần còn lại theo số từ. Không ép câu dài vào 10–15 giây. Chữ fade 0,2 giây ở hai đầu mỗi phần; đủ thời gian đọc ổn định sau fade.
 
@@ -105,11 +105,11 @@ Nền chồng 12 khung (0,4 giây). Text đổi ở giữa khoảng crossfade; m
 
 V5 dùng `core.footage_pool.FootagePool` cho mọi lần xuất đơn, hàng loạt và wrapper CLI. Footage được nhận dạng bằng SHA256 nội dung file (rút gọn 24 hex); các bản sao giống hệt nội dung chỉ là một footage dù khác tên/đường dẫn. Hash được cache theo đường dẫn + size + mtime_ns trong `footage_usage.json`, chỉ đọc lại nội dung khi file thay đổi.
 
-Mỗi footage có số lượt xuất thành công. Khi chọn từng cảnh, lấy footage có lượt dùng hiệu dụng thấp nhất (lượt thành công + đang giữ chỗ), ưu tiên clip được chọn nếu đủ điều kiện, rồi clip dọc và tên file. Tăng lượt giả lập trong kế hoạch để chỉ quay vòng sau khi đã đi qua toàn bộ kho; tránh dùng cùng clip ở hai cảnh liền nhau khi có lựa chọn ngang lượt. Clip được chọn nhưng đã dùng nhiều hơn sẽ được đổi; UI hiển thị clip thực tế và số clip còn ở lượt hiện tại.
+Mỗi footage có số lượt xuất thành công. V8 chỉ chọn trong active_ids của kho hiện tại, không chọn từ toàn bộ inventory lịch sử. Mỗi cảnh ưu tiên clip chưa dùng trong reel và không thuộc câu trước; khi hết clip mới phù hợp, dùng clip câu trước chưa dùng trong reel; chỉ lặp trong reel sau khi hết kho. Trong tập đủ điều kiện lấy lượt hiệu dụng thấp nhất (thành công + giữ chỗ + giả lập trong reel), tránh clip liền trước khi ngang lượt, rồi xét clip được chọn cho cảnh đầu và thứ tự clip dọc/tên file. Quy tắc tránh câu trước/đi hết kho được ưu tiên hơn lượt nhỏ nhất toàn kho. Clip được chọn nhưng đã dùng nhiều hơn sẽ được đổi; UI hiển thị clip thực tế và số clip còn ở lượt hiện tại.
 
 Preview/lập kế hoạch không tiêu hao lượt. Khi submit export, giữ chỗ nguyên tử theo job; các job/phiên khác thấy lượt đã giữ và không chọn trùng. `footage_pool.revision` trong plan phát hiện kế hoạch cũ (HTTP 409, code footage_conflict). UI lập lại kế hoạch trước mỗi lần xuất và tự thử lại một lần nếu xung đột. Batch lập từng kế hoạch ngay trước từng reel sau khi reel trước đã ghi nhận lượt.
 
-`reel_export.lock` tuần tự hóa export giữa các phiên v5. Ngay trước render, kiểm tra lượt thực tế để không lặp trước khi đã hết kho. Chỉ tăng counts sau khi MP4 hoàn tất; export lỗi trả lại lượt. Lượt giữ chỗ từ tiến trình đã thoát được giải phóng khi lập kế hoạch tiếp. Lịch sử có hiệu lực cho các lần xuất bằng v5 trở đi; không suy đoán footage của video cũ không có lịch sử. File lịch sử lỗi sẽ báo lỗi thay vì tự reset và gây lặp. Không xóa lịch sử hoặc dùng cache preview để tính lượt.
+`reel_export.lock` tuần tự hóa export giữa các phiên v5. Ngay trước render, phát lại cùng quy tắc lựa chọn trên active_ids, lượt thực tế và câu xuất thành công gần nhất; xung đột yêu cầu lập lại kế hoạch. Chỉ tăng counts sau khi MP4 hoàn tất; export lỗi trả lại lượt. Lượt giữ chỗ từ tiến trình đã thoát được giải phóng khi lập kế hoạch tiếp. Lịch sử có hiệu lực cho các lần xuất bằng v5 trở đi; không suy đoán footage của video cũ không có lịch sử. File lịch sử lỗi sẽ báo lỗi thay vì tự reset và gây lặp. Không xóa lịch sử hoặc dùng cache preview để tính lượt.
 
 Đoạn nguồn bắt đầu 0,5 giây, hoặc 1/4 độ dài với nguồn ngắn hơn 2 giây. Lấy tối đa đủ thời gian cảnh; nếu thiếu thì `speed = available / needed`, dùng setpts làm chậm. Không lặp nguồn. FPS cuối luôn 30; có pad rất ngắn để bù làm tròn khung cuối.
 
@@ -117,13 +117,13 @@ Preview/lập kế hoạch không tiêu hao lượt. Khi submit export, giữ ch
 
 ### Template và render
 
-`core.renderer.layout_overlay()` tính trước toàn khối: ornament, quote, separator, credit nhiều dòng và padding. Đáy khối tối đa `int(1920 * .86) = 1651`; vị trí được clamp theo chiều cao thật, không chỉ clamp Y ban đầu. Credit được wrap theo chiều rộng; font dùng bounding box để tính dấu tiếng Việt. Chuỗi không có khoảng trắng được ngắt ký tự để không tràn ngang.
+`core.renderer.layout_overlay()` tính trước toàn khối: ornament, quote, separator, credit nhiều dòng và padding. Đáy khối tối đa `int(1920 * .86) = 1651`; vị trí được clamp theo chiều cao thật, không chỉ clamp Y ban đầu. V8 dùng quy hoạch động theo chiều rộng font thực để cân dòng cho quote và credit, phạt mạnh dòng cuối một token hoặc hai token ngắn, ưu tiên giữ cụm tiếng Việt và tránh hư từ ở cuối dòng. Không bảo đảm tránh mọi từ mồ côi nếu khung hoặc token quá dài. Credit được wrap theo chiều rộng; font dùng bounding box để tính dấu tiếng Việt. Chuỗi không có khoảng trắng được ngắt ký tự để không tràn ngang.
 
 Năm theme: Thiền Vàng, Tinh Khôi, Kinh Điển, Điện Ảnh, Sen Giấy. Font serif `timesbd.ttf`; sans `segoeuib.ttf`; credit `segoeui.ttf`. Tìm trong assets workspace, bundle, rồi Windows Fonts. Thiếu font báo lỗi rõ.
 
 Viền chữ mềm dùng chung cho quote và credit, chỉnh qua settings: `outline_enabled` (mặc định true), `outline_color` (`auto` hoặc #RRGGBB, mặc định auto), `outline_width` (0–16 px Full HD, mặc định 4), `outline_blur` (0–24 px, mặc định 8), `outline_opacity` (0..1, mặc định 0.85; nhận phần trăm cũ). Các tên camelCase tương ứng được chuẩn hóa. `auto` dùng màu tối #101018 cho chữ sáng và màu giấy #fff8e9 cho chữ tối của Sen Giấy. Màu tự chọn được giữ khi đổi theme.
 
-`soft_outline(mask, style)` lấy mask glyph, crop vùng có chữ với padding, giãn mask bằng MaxFilter, làm nhòe Gaussian, trừ vùng mực gốc rồi áp màu/opacity. `paint_outlined_text()` composite viền và nét chữ sắc sau cùng. Không blur trực tiếp phần chữ. Tắt viền, opacity 0 hoặc width=blur=0 trả đúng phần chữ không viền. Credit có độ dày/nhòe giảm theo tỷ lệ cỡ chữ để không bết chữ nhỏ. UI có bật/tắt, tự chọn màu, color picker và ba thanh trượt; mọi chỉnh sửa invalidate plan/preview và được lưu cùng settings. Các field outline tự đi vào hash kế hoạch; PLAN_VERSION hiện có soft-outline/template-3 để không dùng overlay cache cũ.
+`soft_outline(mask, style)` lấy mask glyph, crop vùng có chữ với padding, giãn mask bằng MaxFilter, làm nhòe Gaussian, trừ vùng mực gốc rồi áp màu/opacity. `paint_outlined_text()` composite viền và nét chữ sắc sau cùng. Không blur trực tiếp phần chữ. Tắt viền, opacity 0 hoặc width=blur=0 trả đúng phần chữ không viền. Credit có độ dày/nhòe giảm theo tỷ lệ cỡ chữ để không bết chữ nhỏ. UI có bật/tắt, tự chọn màu, color picker và ba thanh trượt; mọi chỉnh sửa invalidate plan/preview và được lưu cùng settings. Các field outline tự đi vào hash kế hoạch; PLAN_VERSION v8 bao gồm quy tắc cân dòng mới để không dùng overlay cache cũ.
 
 `scene_overlay()` và `render_overlay()` dùng chung cho ảnh tĩnh, preview và Full HD. Preview thu nhỏ ảnh từ chính overlay Full HD. Renderer chuẩn hóa nền từng cảnh, làm chậm/crop/fps, sau đó ghép xfade và overlay theo timeline. Chốt `format=yuv444p,fps=30` trước xfade để tránh lỗi FFmpeg rate `1/0`. MP4 cuối H.264/yuv420p + AAC, faststart. Nhạc nền liên tục có fade đầu/cuối; âm thanh nguồn bị tắt.
 
@@ -149,6 +149,7 @@ HTTP chỉ cục bộ. JSON lỗi `{success:false,error}` với HTTP 400. File t
 | GET `/api/rendered_video/{filename}` | MP4 Full HD |
 | GET `/api/thumb/{filename}` | thumbnail ảnh |
 | POST `/api/select_video` | native picker, trả local video metadata; cancel → video:null |
+| POST `/api/select_video_directory` | chọn folder nền hoặc use_default:true; validate, nhớ folder và trả videos/settings |
 | POST `/api/select_save_video` | quote → hộp thoại Lưu video; trả cancelled hoặc save_token + filename |
 | POST `/api/save_video` | save_token + render_job_id Full HD hoàn tất → job sao chép HTTP 202; result.saved_path khi xong |
 | POST `/api/open_folder` | mở output_videos |
@@ -193,7 +194,7 @@ python -X utf8 build_onefile.py
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v7 trước ở `AutoReelSachHay_v7.previous.exe`, copy bản mới tên `AutoReelSachHay_v7.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v8 trước ở `AutoReelSachHay_v8.previous.exe`, copy bản mới tên `AutoReelSachHay_v8.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 
@@ -226,3 +227,16 @@ python -X utf8 build_onefile.py
 - Không có kiểm thử UI tự động ở CI; cần clip thật cho kiểm thử tích hợp. File kết quả kiểm tra thực tế ở VERIFICATION.md.
 
 Chạy thử với dữ liệu riêng: `app.py --headless --workspace <thư mục đã tồn tại> --port N`. Tùy chọn --workspace đổi BASE_DIR ghi dữ liệu; tài nguyên UI/font/FFmpeg vẫn lấy từ bundle. Không trỏ test vào profile người dùng khi thử reset lịch sử hoặc tạo clip giả.
+
+
+## V8 — Folder nền, chia cảnh theo ý và chống lặp câu trước (2026-10-28)
+
+- `background_video_directory` lưu trong session_state.json, rỗng = kho mặc định. `VideoDetector.scan_all_videos(directory=None)` đọc folder đã nhớ khi None; chuỗi rỗng dùng mặc định. Quét đệ quy MOV/MP4/M4V/MKV; folder tùy chọn bị mất/rỗng/lỗi báo rõ, không fallback. Clip chọn riêng vẫn được bổ sung có chủ đích.
+- POST `/api/select_video_directory` mở hộp thoại folder; `{use_default:true}` trở về kho mặc định. Trả cancelled hoặc directory/videos/settings; chỉ ghi nhớ sau khi scan thành công và xóa video_path cũ. GET `/api/videos` quét lại. UI vẫn khởi tạo được khi kho lỗi để chọn folder khác; autosave không gửi lại background_video_directory.
+- Payload `/api/plan` thêm `previous_footage_ids` (danh sách SHA256 rút gọn 24 hex), không phải setting tự lưu. UI giữ kế hoạch đã nhận gần nhất để chụp toàn bộ footage khi đổi nội dung; sửa thiết kế không thay ngữ cảnh. Preview không tăng counts hoặc last_export.
+- Footage history giữ version 1 và counts cũ, bổ sung last_export={quote,ids} sau xuất thành công. Khi quote khác, kết hợp last_export với ngữ cảnh preview từ UI. Reservation bổ sung active_ids/requested_avoid_ids/quote để kiểm tra cùng quy tắc lúc submit và trước render. Không xóa lịch sử kho cũ khi đổi folder.
+- Plan.footage_pool bổ sung active_ids, avoid_ids, requested_avoid_ids, quote, fallback_scenes, repeated_scenes; danh sách cảnh dùng index từ 0. UI báo quay vòng khi không đủ footage mới và đánh dấu từng cảnh liên quan. PLAN_VERSION=`multi-scene-v8-library-clauses-balanced-lines-footage`.
+- Batch chụp background_video_directory tại lúc submit (kể cả mặc định), bỏ ngữ cảnh preview của câu đang sửa, lập kế hoạch từng câu theo last_export mới nhất. Đổi folder ở phiên khác không đổi kho của batch đang chạy.
+- Bỏ btnRenderSingle và luồng renderSingle; giữ renderSnapshot dùng cho Tải video. btnBatchRender nằm trong header sticky, số câu và modal lấy từ danh sách thực. Âm lượng và tiến độ vẫn ở panel cuối.
+- Build tạo AutoReelSachHay_v8.exe; BAT/VBS ưu tiên v8 và chuyển tiếp tham số --workspace/--port để kiểm tra profile riêng. Không đóng phiên cũ.
+- `tests/test_v8.py` và `node tests/test_download_ui.js` kiểm tra folder/cancel/restart, chia câu, cân dòng, kho hoạt động, lượt dùng và ngữ cảnh câu trước. `python -X utf8 verify_v8.py --hold` mở EXE qua VBS trên profile riêng, kiểm tra preview/Full HD/batch, decode và đối chiếu màu footage, đổi kho giữa batch, lỗi kho và restart; giữ phiên riêng để kiểm tra UI.

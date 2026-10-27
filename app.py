@@ -35,10 +35,12 @@ from core.renderer import scene_overlay
 from core.settings import normalize_settings, save_settings_patch, load_settings
 from core.jobs import JobManager
 from core.downloads import SaveVideoService
+from core.video_library import VideoLibraryService
 
 video_detector = None
 jobs = None
 downloads = None
+video_library = None
 settings_lock = threading.Lock()
 
 
@@ -61,7 +63,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 name = 'index.html' if path == '/' else path[1:]
                 return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
             if path == '/api/health':
-                return self._send_json(dict(success=True, version='multi-scene-v1', pid=os.getpid()))
+                return self._send_json(dict(success=True, version='multi-scene-v8', pid=os.getpid()))
             if path == '/api/quotes':
                 return self._send_json(get_all_quotes(str(BASE_DIR)))
             if path == '/api/videos':
@@ -120,6 +122,8 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 return self._send_json(dict(success=True, settings=settings))
             if path == '/api/plan':
                 return self._send_json(build_plan(body, BASE_DIR, video_detector))
+            if path == '/api/select_video_directory':
+                return self._send_json(video_library.select(body.get('use_default') is True))
             if path == '/api/select_save_video':
                 return self._send_json(downloads.select(body.get('quote', '')))
             if path == '/api/save_video':
@@ -135,10 +139,11 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                     job = jobs.get(job['job_id'])
                 return self._send_json(job.get('result', dict(success=False, error=job.get('error'))))
             if path == '/api/batch_render':
-                videos = video_detector.scan_all_videos()
+                body = {**body, 'background_video_directory': body.get('background_video_directory', read_settings()['background_video_directory'])}
+                videos = video_detector.scan_all_videos(body['background_video_directory'])
                 if not videos:
                     raise ValueError('Kho video trống.')
-                items = [{**body, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
+                items = [{**body, 'quote': q['quote'], 'previous_footage_ids': [], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
                 job = jobs.batch(items, video_detector)
                 if body.get('async'):
                     return self._send_json(job, 202)
@@ -242,7 +247,7 @@ def launch_app_window(url):
 
 
 def main():
-    global video_detector, jobs, downloads
+    global video_detector, jobs, downloads, video_library
     logs = BASE_DIR / 'logs'
     logs.mkdir(exist_ok=True)
     logging.basicConfig(filename=logs / 'app.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -254,6 +259,7 @@ def main():
     video_detector = VideoDetector(BASE_DIR)
     jobs = JobManager(BASE_DIR)
     downloads = SaveVideoService(BASE_DIR)
+    video_library = VideoLibraryService(BASE_DIR, video_detector)
     if '--batch' in sys.argv:
         videos = video_detector.scan_all_videos()
         if not videos:

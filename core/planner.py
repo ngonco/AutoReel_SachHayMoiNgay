@@ -5,11 +5,11 @@ from pathlib import Path
 import unicodedata
 from core.media import probe, resource_path
 from core.paginator import split_into_slides, calculate_slide_timings
-from core.settings import normalize_settings
+from core.settings import normalize_settings, load_settings
 from core.footage_pool import FootagePool
 from core.persistence import atomic_json
 
-PLAN_VERSION = 'multi-scene-v5-autosave-footage-pool-template-3'
+PLAN_VERSION = 'multi-scene-v8-library-clauses-balanced-lines-footage'
 
 
 def fingerprint(path):
@@ -19,13 +19,15 @@ def fingerprint(path):
 
 
 def build_plan(payload, workspace_dir, detector):
+    if 'background_video_directory' not in payload:
+        payload = {**payload, 'background_video_directory': load_settings(workspace_dir)['background_video_directory']}
     settings = {k:v for k,v in normalize_settings(payload).items() if k not in ('quote','quote_index','video_path','safe_zone','last_save_directory')}
     text = '\n'.join(' '.join(line.split()) for line in unicodedata.normalize('NFC', str(payload.get('quote') or '')).splitlines() if line.strip())
     if not text:
         raise ValueError('Hãy nhập nội dung câu nói.')
     if len(text) > 20000:
         raise ValueError('Nội dung tối đa 20.000 ký tự mỗi reel.')
-    videos = detector.scan_all_videos()
+    videos = detector.scan_all_videos(payload['background_video_directory'])
     selected = payload.get('video_path')
     if selected:
         if not Path(selected).is_file():
@@ -40,7 +42,11 @@ def build_plan(payload, workspace_dir, detector):
     if all(Path(v['path']).resolve()!=Path(chosen['path']).resolve() for v in videos):videos.append(chosen)
     slides = split_into_slides(text, settings['auto_paginate'])
     timings = calculate_slide_timings(slides, settings['duration'])
-    allocations, pool_info = FootagePool(workspace_dir).preview(videos, len(timings), chosen)
+    avoid_ids = payload.get('previous_footage_ids', [])
+    if not isinstance(avoid_ids, list) or any(not isinstance(key, str) or len(key) != 24 or
+                                             any(c not in '0123456789abcdef' for c in key) for key in avoid_ids):
+        raise ValueError('Danh sách footage câu trước không hợp lệ.')
+    allocations, pool_info = FootagePool(workspace_dir).preview(videos, len(timings), chosen, avoid_ids, text)
     scenes = []
     for i, timing in enumerate(timings):
         footage_id, source = allocations[i]

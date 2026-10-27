@@ -19,5 +19,6 @@
   "quote_index": 0,
   "video_path": "",
   "safe_zone": false,
-  "last_save_directory": ""
+  "last_save_directory": "",
+  "background_video_directory": ""
 }

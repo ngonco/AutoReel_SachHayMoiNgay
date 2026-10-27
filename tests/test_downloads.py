@@ -110,7 +110,7 @@ class DownloadTests(unittest.TestCase):
         source = self.root / 'clip.mp4'
         source.write_bytes(b'clip')
         class Detector:
-            def scan_all_videos(self):
+            def scan_all_videos(self, directory=None):
                 return [dict(path=str(source), name=source.name, is_vertical=True, recommended_pos='bottom')]
         with patch('core.planner.probe', return_value=dict(width=1080, height=1920, duration=3)):
             a = build_plan(dict(quote='Bình an',last_save_directory='D:/one'), self.root, Detector())

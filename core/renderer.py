@@ -8,6 +8,7 @@ import unicodedata
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops, ImageColor
 from core.media import resource_path, tool_path, run_media
 from core.settings import normalize_settings
+from core.paginator import boundary_penalty
 
 W, H = 1080, 1920
 SAFE_BOTTOM = int(H * .86)
@@ -23,22 +24,44 @@ def get_font(font_name, size, workspace_dir=None):
 
 
 def wrap_text(text, font, max_width, draw):
-    lines, line = [], ''
+    # Break only over-wide tokens into character chunks before balancing real word lines.
+    words = []
     for word in text.split():
-        trial = (line + ' ' + word).strip()
-        if draw.textlength(trial, font=font) <= max_width:
-            line = trial
+        if draw.textlength(word, font=font) <= max_width:
+            words.append(word)
             continue
-        if line:
-            lines.append(line)
-        line = ''
+        chunk = ''
         for char in word:
-            if line and draw.textlength(line + char, font=font) > max_width:
-                lines.append(line)
-                line = ''
-            line += char
-    if line:
-        lines.append(line)
+            if chunk and draw.textlength(chunk + char, font=font) > max_width:
+                words.append(chunk)
+                chunk = ''
+            chunk += char
+        if chunk:
+            words.append(chunk)
+    n = len(words)
+    costs, previous = [0.] + [float('inf')] * n, {}
+    for end in range(1, n + 1):
+        for start in range(end - 1, -1, -1):
+            line = ' '.join(words[start:end])
+            width = draw.textlength(line, font=font)
+            if width > max_width:
+                break
+            # Similar widths, few lines, no orphan tail, and intact Vietnamese phrases.
+            cost = 35 + 90 * ((max_width - width) / max_width) ** 2
+            cost += boundary_penalty(words, end) * 2
+            if end == n and start:
+                if end - start == 1:
+                    cost += 450
+                elif end - start == 2 and width < max_width * .40:
+                    cost += 240
+            if costs[start] + cost < costs[end]:
+                costs[end], previous[end] = costs[start] + cost, start
+    lines, cursor = [], n
+    while cursor:
+        start = previous[cursor]
+        lines.append(' '.join(words[start:cursor]))
+        cursor = start
+    lines.reverse()
     return lines
 
 

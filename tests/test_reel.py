@@ -124,7 +124,7 @@ class ContentTests(unittest.TestCase):
 
     def test_plan_slowdown_cycle_and_invalidation(self):
         class Detector:
-            def scan_all_videos(self): return videos
+            def scan_all_videos(self, directory=None): return videos
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
             paths=[root/'one.mp4',root/'two.mp4']

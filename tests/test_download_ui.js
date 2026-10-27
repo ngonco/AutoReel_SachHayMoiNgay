@@ -63,5 +63,40 @@ function fixture() {
     f.run("state.settings.last_save_directory='D:/old';lastSavedSettings=payload();");
     assert.equal(f.run("Object.hasOwn(payload(),'last_save_directory')"),false,'Autosave must not overwrite the server-remembered folder');
   }
-  console.log('Download UI: cancel, reuse, changes, snapshot, copy retry and folder isolation passed.');
+  {
+    const f=fixture();
+    f.context.setTimeout=()=>0;f.context.clearTimeout=()=>{};
+    f.run("state.ready=true;state.contextQuote='Câu trước.';state.lastAcceptedPlan={quote:'Câu trước.',scenes:[{footage_id:'a'.repeat(24)},{footage_id:'b'.repeat(24)}]};");
+    f.element('quoteInput').value='Câu kế tiếp.';f.run('invalidate()');
+    assert.deepEqual(Array.from(f.run('payload().previous_footage_ids')),['a'.repeat(24),'b'.repeat(24)]);
+    f.run("state.lastAcceptedPlan={quote:'Câu kế tiếp.',scenes:[{footage_id:'c'.repeat(24)}]};state.settings.quote_size=80;invalidate();");
+    assert.deepEqual(Array.from(f.run('payload().previous_footage_ids')),['a'.repeat(24),'b'.repeat(24)],'Style changes keep previous quote context');
+    f.run("state.settings.background_video_directory='E:/new';");
+    const patch=f.run('changedSettings(payload())');
+    assert.equal(Object.hasOwn(patch,'background_video_directory'),false,'Autosave cannot restore an old library');
+    assert.equal(Object.hasOwn(patch,'previous_footage_ids'),false,'Preview context is not an autosaved setting');
+  }
+  {
+    const f=fixture();f.context.setTimeout=()=>0;
+    f.run('populateVideos=()=>{};invalidate=()=>{};');
+    f.context.record=async()=>({cancelled:true});
+    f.run("state.settings.background_video_directory='E:/old';state.currentVideo={path:'old.mp4'};");
+    await f.run("refreshLibrary('select')");
+    assert.equal(f.run('state.settings.background_video_directory'),'E:/old');
+    assert.equal(f.run('state.currentVideo.path'),'old.mp4');
+    f.context.record=async()=>({directory:'E:/new',videos:[{path:'new.mp4'}]});
+    await f.run("refreshLibrary('select')");
+    assert.equal(f.run('state.currentVideo.path'),'new.mp4');
+    assert.equal(f.run('payload().background_video_directory'),'E:/new');
+    f.context.record=async()=>{throw Error('Folder missing');};
+    await f.run('refreshLibrary()');
+    assert.equal(f.run('state.currentVideo'),null);
+    assert.equal(f.element('btnDownloadVideo').disabled,true);
+    assert.equal(f.element('btnSelectVideoDirectory').disabled,false,'Missing library must remain recoverable');
+  }
+  const html=fs.readFileSync('ui/index.html','utf8');
+  assert.equal(html.includes('btnRenderSingle'),false);
+  assert.equal((html.match(/id="btnBatchRender"/g)||[]).length,1);
+  assert.ok(html.indexOf('id="btnBatchRender"')<html.indexOf('</header>'));
+  console.log('UI: download, snapshot, previous quote, style edits, library cancel/change/error, autosave and header actions passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
