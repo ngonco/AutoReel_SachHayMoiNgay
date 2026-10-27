@@ -1,0 +1,15 @@
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+title Auto Reel Sách Hay Mỗi Ngày
+if exist "AutoReelSachHay_v2.exe" (
+    start "" "AutoReelSachHay_v2.exe"
+) else if exist "AutoReelSachHay.exe" (
+    start "" "AutoReelSachHay.exe"
+) else if exist "dist\AutoReelSachHay\AutoReelSachHay_v2.exe" (
+    start "" "dist\AutoReelSachHay\AutoReelSachHay_v2.exe"
+) else if exist "dist\AutoReelSachHay\AutoReelSachHay.exe" (
+    start "" "dist\AutoReelSachHay\AutoReelSachHay.exe"
+) else (
+    python -X utf8 app.py
+)

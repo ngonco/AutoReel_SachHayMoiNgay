@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auto Reel Sách Hay Mỗi Ngày | Trình tạo video Reels Tượng Phật</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <div class="logo-icon">✦</div>
+      <div class="brand-text">
+        <h1>AUTO REEL SÁCH HAY</h1>
+        <small>Tạo video dọc 9:16 • Tránh che mặt Phật • Chuẩn Reels / TikTok</small>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="badge gold">9:16 • 1080×1920</div>
+      <div class="badge">Nhiều cảnh • Đủ thời gian đọc</div>
+      <button class="btn small" id="btnOpenFolder">📂 Thư mục video đã xuất</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- CỘT ĐIỀU KHIỂN BÊN TRÁI -->
+    <section class="editor">
+      <!-- 01 / CÂU NÓI & NGUỒN -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">01 / Nội dung câu nói</div>
+          <div class="panel-sub" id="quoteCounter">Câu 1 / 16</div>
+        </div>
+
+        <div class="field">
+          <label for="quoteSelect">Chọn câu từ danh sách (16 câu có sẵn):</label>
+          <div style="display:flex; gap:8px;">
+            <select id="quoteSelect"></select>
+            <button class="btn small" id="btnPrevQuote" title="Câu trước">◀</button>
+            <button class="btn small" id="btnNextQuote" title="Câu sau">▶</button>
+            <button class="btn small" id="btnRandQuote" title="Ngẫu nhiên">🎲</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="quoteInput">
+            Câu nói chính:
+            <span class="hint">Tự động ngắt dòng theo màn hình dọc</span>
+          </label>
+          <textarea id="quoteInput" spellcheck="false" rows="3"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="creditInput">Kênh / Nguồn (Nhỏ, thanh thoát, cho phép sửa):</label>
+          <input type="text" id="creditInput" value="Thanh Vị Sách Hay Mỗi Ngày" spellcheck="false">
+        </div>
+      </div>
+
+      <!-- 02 / VIDEO NỀN TƯỢNG PHẬT -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">02 / Video tượng Phật nền</div>
+          <div class="panel-sub" id="videoCountBadge">59 clip chất lượng cao</div>
+        </div>
+
+        <div class="field">
+          <label>Chọn video (Cuộn ngang để xem tất cả clip):</label>
+          <div class="video-carousel" id="videoCarousel">
+            <!-- Render bằng JavaScript -->
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+          <div style="font-size:12px; color:var(--text-muted);" id="currentVideoName">
+            Đang chọn: <strong>IMG_3381.MOV</strong>
+          </div>
+          <div class="btn-group">
+            <label for="uploadVideoInput" class="btn small" style="cursor:pointer; margin:0;">
+              ＋ Chọn video khác
+            </label>
+            <input type="file" id="uploadVideoInput" accept="video/*" style="display:none;">
+            <button class="btn small" id="btnRandomVideo">🎲 Chọn ngẫu nhiên</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 / VỊ TRÍ CHỮ & TRÁNH MẶT PHẬT -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">03 / Vị trí chữ & Tránh mặt Phật</div>
+          <div class="badge gold" id="posBadge">AI: Nửa Dưới</div>
+        </div>
+
+        <div class="pos-chips">
+          <div class="pos-chip active" data-pos="auto">✦ Tự động thông minh</div>
+          <div class="pos-chip" data-pos="bottom">↓ Nửa Dưới</div>
+          <div class="pos-chip" data-pos="top">↑ Nửa Trên</div>
+          <div class="pos-chip" data-pos="center">↕ Chính Giữa</div>
+        </div>
+
+        <div class="ai-recommend-bar" id="aiRecommendText">
+          💡 AI phát hiện: Tượng Phật ở nửa trên (y=590px) → Tự động đặt chữ ở NỬA DƯỚI để tuyệt đối không che mặt Phật.
+        </div>
+
+        <div class="slider-grid">
+          <div class="slider-field">
+            <label for="verticalSlider">Dịch vị trí Y: <b id="verticalVal">0 px</b></label>
+            <input type="range" id="verticalSlider" min="-350" max="350" value="0" step="10">
+          </div>
+          <div class="slider-field">
+            <label for="shadeSlider">Độ đậm nền chữ (Shade): <b id="shadeVal">70%</b></label>
+            <input type="range" id="shadeSlider" min="0" max="100" value="70" step="5">
+          </div>
+          <div class="slider-field">
+            <label for="quoteSizeSlider">Cỡ chữ câu nói: <b id="quoteSizeVal">68</b></label>
+            <input type="range" id="quoteSizeSlider" min="42" max="108" value="68" step="2">
+          </div>
+          <div class="slider-field">
+            <label for="creditSizeSlider">Cỡ chữ nguồn: <b id="creditSizeVal">20</b></label>
+            <input type="range" id="creditSizeSlider" min="14" max="32" value="20" step="1">
+          </div>
+        </div>
+
+        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-top:14px;">
+          <label class="switch-label">
+            <input type="checkbox" id="autofitCheck" checked> Tự co chữ nếu câu quá dài
+          </label>
+          <label class="switch-label">
+            <input type="checkbox" id="safeZoneCheck"> Hiện vùng an toàn Reels (Safe Zone)
+          </label>
+        </div>
+      </div>
+
+      <!-- 04 / PHÂN TRANG & THỜI LƯỢNG -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">04 / Phân đoạn chữ & Thời lượng</div>
+          <div class="panel-sub" id="paginationBadge">2 Trang (Slides)</div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label class="switch-label" style="margin:0;">
+            <input type="checkbox" id="autoPaginateCheck" checked> Tự chia câu dài thành nhiều cảnh
+          </label>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12px; color:var(--text-muted);">Tối thiểu:</span>
+            <div class="btn-group">
+              <button class="btn small duration-btn" data-dur="10">10s</button>
+              <button class="btn small duration-btn active" data-dur="12">12s</button>
+              <button class="btn small duration-btn" data-dur="15">15s</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="totalDuration" class="timeline-summary">Đang tính thời lượng…</p>
+        <!-- Danh sách lấy từ kế hoạch chung của máy chủ -->
+        <div class="slide-tabs" id="slideTabs">
+          <!-- Render bằng JS: [Slide 1 (0s-6s)] [Slide 2 (6s-12s)] -->
+        </div>
+        <div id="slidePreviewText" style="font-size:12px; color:var(--text-muted); font-style:italic;">
+          Trang 1: Hạnh phúc không phải đến từ việc yêu thương bản thân...
+        </div>
+      </div>
+
+      <div class="panel scene-panel"><div class="panel-title">Kịch bản reel</div><p class="panel-sub">Mỗi phần chữ một clip • bấm cảnh để xem • tự làm chậm nguồn ngắn</p><div id="sceneList" class="scene-list"></div></div>
+      <!-- 05 / CHỌN PHONG CÁCH CHỮ NGHỆ THUẬT -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">05 / Phong cách chữ nghệ thuật</div>
+          <div class="panel-sub" id="themeNameBadge">Thiền Vàng</div>
+        </div>
+
+        <div class="templates-grid" id="templatesGrid">
+          <div class="template-btn active" data-theme="0">
+            <div class="template-thumb" style="background:#17243c; border-bottom: 3px solid #e5c182;"></div>
+            <span>01 Thiền Vàng</span>
+          </div>
+          <div class="template-btn" data-theme="1">
+            <div class="template-thumb" style="background:#0c1e2d; border-bottom: 3px solid #ffffff;"></div>
+            <span>02 Tinh Khôi</span>
+          </div>
+          <div class="template-btn" data-theme="2">
+            <div class="template-thumb" style="background:#1a1014; border-bottom: 3px solid #e1b27f;"></div>
+            <span>03 Kinh Điển</span>
+          </div>
+          <div class="template-btn" data-theme="3">
+            <div class="template-thumb" style="background:#020814; border-bottom: 3px solid #eac38c;"></div>
+            <span>04 Điện Ảnh</span>
+          </div>
+          <div class="template-btn" data-theme="4">
+            <div class="template-thumb" style="background:#fff8e9; border-bottom: 3px solid #ab8c60;"></div>
+            <span>05 Sen Giấy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 06 / XUẤT VIDEO -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">06 / Xuất video Reel</div>
+          <div class="panel-sub">FFmpeg H.264 • Âm thanh chuông thiền</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+          <div class="slider-field">
+            <label for="musicVolSlider">Chuông thiền: <b id="musicVolVal">85%</b></label>
+            <input type="range" id="musicVolSlider" min="0" max="100" value="85" step="5">
+          </div>
+          <div style="display:flex; align-items:flex-end;">
+            <button class="btn small" id="btnTestAudio" style="width:100%;">🔔 Nghe thử chuông thiền</button>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:12px;">
+          <button class="btn primary" id="btnRenderSingle" style="padding:14px; font-size:14px;">
+            ▶ RENDER VIDEO HIỆN TẠI (12s)
+          </button>
+          <button class="btn secondary" id="btnBatchRender" style="padding:14px; font-size:13px;">
+            ⚡ RENDER HÀNG LOẠT (16 CÂU)
+          </button>
+        </div>
+
+        <!-- PROGRESS BAR -->
+        <div class="progress-box" id="progressBox">
+          <div class="progress-text">
+            <span id="progressStatus">Đang chuẩn bị render...</span>
+            <b id="progressPercent">0%</b>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CỘT XEM TRƯỚC BÊN PHẢI (LIVE PREVIEW & VIDEO PLAYER) -->
+    <aside class="preview-container">
+      <div class="phone-mockup" id="phoneMockup">
+        <div class="phone-header-notch"></div>
+
+        <!-- Video nền thực tế -->
+        <video id="previewVideo" playsinline preload="metadata" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;"></video>
+
+        <!-- Canvas kết xuất đồ họa chữ -->
+        <canvas class="stage-canvas" id="previewCanvas" width="1080" height="1920"></canvas>
+
+        <!-- Khung vùng an toàn Reels -->
+        <div class="safe-zone-overlay" id="safeZoneOverlay">
+          <div class="safe-zone-tag">VÙNG AN TOÀN REELS / TIKTOK</div>
+        </div>
+      </div>
+
+      <div class="preview-controls">
+        <div id="playbackStatus" role="status" aria-live="polite">Đang khởi tạo…</div><div id="playbackTime" class="panel-sub">0.0s</div>
+        <div class="preview-meta">
+          <div>Đang xem: <strong id="previewStyleName">Thiền Vàng</strong></div>
+          <div id="previewSlideIndicator">Trang 1 / 2</div>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button class="btn small" id="btnTogglePlayVideo" style="flex:1;">▶ Phát toàn bộ reel</button>
+          <button class="btn small" id="btnWatchRendered" style="flex:1; display:none;">👁 Xem lại video vừa render</button>
+        </div>
+
+        <div style="font-size:11px; color:var(--text-dim); line-height:1.5; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+          ✦ <strong>Mẹo Reels:</strong> Câu dài tự chia cảnh và tăng thời lượng đủ đọc. Play sẽ dựng bản nhẹ với chữ, nền, nhạc giống bản xuất Full HD.
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODAL RENDER HÀNG LOẠT -->
+  <div class="modal-overlay" id="batchModal">
+    <div class="modal">
+      <h2 style="font-size:18px; margin-bottom:8px; color:var(--accent-gold);">⚡ Render hàng loạt 16 câu nói</h2>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+        Hệ thống sẽ tự động ghép từng câu nói với các video tượng Phật ngẫu nhiên/tuần tự, tự động phát hiện vị trí tránh che mặt Phật và xuất ra 16 video Full HD 1080x1920 hoàn chỉnh!
+      </p>
+
+      <div class="progress-box active" style="margin-bottom:18px;">
+        <div class="progress-text">
+          <span id="batchStatus">Sẵn sàng xuất 16 video...</span>
+          <b id="batchPercent">0%</b>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="batchBarFill"></div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn" id="btnCloseBatchModal">Đóng</button>
+        <button class="btn primary" id="btnStartBatchRender">Bắt đầu Render 16 Video</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

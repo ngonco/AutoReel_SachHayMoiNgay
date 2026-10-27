@@ -1,0 +1,34 @@
+# Source backup only. User media, generated output, credentials and build artifacts stay local.
+__pycache__/
+*.py[cod]
+.cache/
+build/
+dist/
+logs/
+output_videos/
+test_renders/
+CLIP TƯỢNG PHẬT LQ/
+assets/thumbnails/
+assets/imports/
+assets/fonts/*.ttf
+assets/fonts/*.ttc
+bin/
+*.exe
+*.dll
+*.mp4
+*.MOV
+*.mov
+*.mkv
+*.m4v
+*.pmdx
+*.bak
+settings.json
+settings.json.tmp
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.codex/
+.agents/
+.aws/

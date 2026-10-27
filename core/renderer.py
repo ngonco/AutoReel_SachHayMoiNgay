@@ -1,0 +1,236 @@
+"""One Pillow layout and one FFmpeg pipeline for stills, preview and Full HD."""
+import math
+import os
+from pathlib import Path
+import tempfile
+import time
+import unicodedata
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from core.media import resource_path, tool_path, run_media
+
+W, H = 1080, 1920
+SAFE_BOTTOM = int(H * .86)
+
+
+def get_font(font_name, size, workspace_dir=None):
+    paths = ([Path(workspace_dir) / 'assets' / 'fonts' / font_name] if workspace_dir else [])
+    paths += [resource_path('assets', 'fonts', font_name), Path('C:/Windows/Fonts') / font_name]
+    for p in paths:
+        if p.is_file():
+            return ImageFont.truetype(str(p), int(size))
+    raise ValueError('Thiếu font ' + font_name + '. Hãy khôi phục assets/fonts.')
+
+
+def wrap_text(text, font, max_width, draw):
+    lines, line = [], ''
+    for word in text.split():
+        trial = (line + ' ' + word).strip()
+        if draw.textlength(trial, font=font) <= max_width:
+            line = trial
+            continue
+        if line:
+            lines.append(line)
+        line = ''
+        for char in word:
+            if line and draw.textlength(line + char, font=font) > max_width:
+                lines.append(line)
+                line = ''
+            line += char
+    if line:
+        lines.append(line)
+    return lines
+
+
+def layout_overlay(quote_text, credit_text, theme_index=0, pos_mode='bottom', vertical_offset=0,
+                   quote_size=68, credit_size=20, autofit=True, workspace_dir=None, **unused):
+    draw = ImageDraw.Draw(Image.new('RGBA', (W, H)))
+    quote_text = unicodedata.normalize('NFC', quote_text or '')
+    credit_text = unicodedata.normalize('NFC', credit_text or '')
+    qsize, csize = int(quote_size), int(credit_size)
+    while True:
+        qfont = get_font('segoeuib.ttf' if theme_index == 3 else 'timesbd.ttf', qsize, workspace_dir)
+        cfont = get_font('segoeui.ttf', csize, workspace_dir)
+        lines = wrap_text(quote_text, qfont, 768, draw)
+        credits = wrap_text(credit_text, cfont, 768, draw)
+        qheight = max((draw.textbbox((0, 0), s, font=qfont, anchor='lt')[3] for s in lines), default=qsize)
+        cheight = max((draw.textbbox((0, 0), s, font=cfont, anchor='lt')[3] for s in credits), default=csize)
+        qline, cline = math.ceil(qheight + qsize * .28), math.ceil(cheight + csize * .35)
+        qh = len(lines) * qline
+        ch = len(credits) * cline
+        height = 48 + 32 + qh + (40 + ch if credits else 0) + 40
+        if height > SAFE_BOTTOM - 180 and qsize > 28:
+            qsize -= 2
+            continue
+        if autofit and len(lines) > 4 and qsize > 48:
+            qsize -= 2
+            continue
+        break
+    if height > SAFE_BOTTOM - 180:
+        raise ValueError('Nội dung quá dài để hiển thị an toàn. Hãy bật tự động chia cảnh hoặc rút ngắn nguồn.')
+    preferred = 260 if pos_mode == 'top' else (960 - height / 2 if pos_mode == 'center' else 1180)
+    top = int(max(180, min(SAFE_BOTTOM - height, preferred + vertical_offset)))
+    return dict(lines=lines, credits=credits, qfont=qfont, cfont=cfont, qline=qline, cline=cline,
+                top=top, bottom=top + height, height=height, quote_y=top + 80,
+                credit_y=top + 80 + qh + 40, quote_size=qsize)
+
+
+def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', header_text='', theme_index=0,
+                   pos_mode='bottom', vertical_offset=0, quote_size=68, credit_size=20,
+                   shade=.70, autofit=True, workspace_dir=None):
+    layout = layout_overlay(quote_text, credit_text, theme_index, pos_mode, vertical_offset, quote_size, credit_size, autofit, workspace_dir)
+    im = Image.new('RGBA', (W, H))
+    draw = ImageDraw.Draw(im)
+    top, bottom = layout['top'], layout['bottom']
+    centered = theme_index in (1, 4)
+    paper = theme_index == 4
+    gold = (233, 199, 143, 255)
+    if theme_index in (2, 4):
+        shadow = Image.new('RGBA', (W, H))
+        ImageDraw.Draw(shadow).rounded_rectangle((86, top + 8, 958, bottom + 8), 28, fill=(0, 0, 0, 115))
+        im = Image.alpha_composite(im, shadow.filter(ImageFilter.GaussianBlur(12)))
+        draw = ImageDraw.Draw(im)
+        draw.rounded_rectangle((82, top, 954, bottom), 26,
+                               fill=(255, 247, 229, 250) if paper else (20, 25, 28, int(205 + 45 * shade)),
+                               outline=(180, 151, 106, 200), width=2)
+        if not paper:
+            draw.rounded_rectangle((94, top + 12, 942, bottom - 12), 18, outline=(180, 151, 106, 65), width=1)
+    else:
+        # Continuous soft scrim reaches the footer without a hard bottom seam.
+        for y in range(max(0, top - 220), H if pos_mode == 'bottom' else min(H, bottom + 220)):
+            distance = max(top - y, y - bottom, 0)
+            factor = max(0., 1 - distance / 220)
+            alpha = int((65 + 165 * shade) * factor)
+            draw.line((0, y, W, y), fill=(6, 16, 23, alpha))
+    accent = (165, 124, 76, 255) if paper else gold
+    ornament_y = top + 43
+    if centered:
+        draw.line((447, ornament_y, 493, ornament_y), fill=accent, width=2)
+        draw.polygon([(518, ornament_y - 6), (524, ornament_y), (518, ornament_y + 6), (512, ornament_y)], fill=accent)
+        draw.line((543, ornament_y, 589, ornament_y), fill=accent, width=2)
+    elif theme_index == 3:
+        draw.rounded_rectangle((110, top + 48, 116, bottom - 40), 3, fill=gold)
+    else:
+        draw.line((134, ornament_y, 194, ornament_y), fill=gold, width=2)
+        draw.ellipse((206, ornament_y - 3, 212, ornament_y + 3), fill=gold)
+    color = (64, 55, 43, 255) if paper else ((255, 251, 242, 255) if theme_index in (1, 3) else (250, 230, 191, 255))
+    y = layout['quote_y']
+    for line in layout['lines']:
+        width = draw.textlength(line, font=layout['qfont'])
+        x = (1036 - width) / 2 if centered else 134
+        if not paper:
+            draw.text((x + 2, y + 3), line, font=layout['qfont'], anchor='lt', fill=(0, 0, 0, 180))
+        draw.text((x, y), line, font=layout['qfont'], anchor='lt', fill=color)
+        y += layout['qline']
+    if layout['credits']:
+        y = layout['credit_y']
+        line_start = 438 if centered else 134
+        draw.line((line_start, y - 20, line_start + 160, y - 20), fill=accent, width=1)
+        for line in layout['credits']:
+            x = (1036 - draw.textlength(line, font=layout['cfont'])) / 2 if centered else 134
+            draw.text((x, y), line, font=layout['cfont'], anchor='lt', fill=(111, 83, 49, 255) if paper else (238, 220, 187, 255))
+            y += layout['cline']
+    return im
+
+
+def scene_overlay(plan, scene, workspace_dir):
+    s = plan['settings']
+    return render_overlay(scene['text'], s['credit'], theme_index=s['theme_index'], pos_mode=scene['resolved_pos'],
+                          vertical_offset=s['vertical_offset'], quote_size=s['quote_size'], credit_size=s['credit_size'],
+                          shade=s['shade'], autofit=s['autofit'], workspace_dir=workspace_dir)
+
+
+def _execute(cmd):
+    result = run_media(cmd, stdout=-3, stderr=-1, timeout=3600)
+    if result.returncode:
+        raise RuntimeError('FFmpeg không dựng được video: ' + result.stderr.decode('utf-8', errors='replace')[-3500:])
+
+
+def render_plan(plan, output_path, workspace_dir, preview=False, progress_callback=None):
+    from core.planner import load_plan
+    # Reject stale files even if a plan was queued before a source edit.
+    plan = load_plan(plan['plan_id'], workspace_dir)
+    start = time.time()
+    width, height = (540, 960) if preview else (W, H)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    partial = output_path.with_name(output_path.stem + '.partial.mp4')
+    ffmpeg = tool_path('ffmpeg')
+    settings = plan['settings']
+    try:
+        with tempfile.TemporaryDirectory(prefix='reel_render_') as tmp:
+            clips, overlays = [], []
+            for i, scene in enumerate(plan['scenes']):
+                if progress_callback:
+                    progress_callback(int(5 + 55 * i / len(plan['scenes'])), f'Đang chuẩn bị cảnh {i + 1}/{len(plan["scenes"])}')
+                duration = scene['end'] - scene['start']
+                target = str(Path(tmp) / f'background_{i}.mp4')
+                # Decode before trimming for accurate MOV timestamps, then slow only when needed.
+                vf = (f'trim=start={scene["source_start"]}:end={scene["source_end"]},'
+                      f'setpts=(PTS-STARTPTS)/{scene["speed"]},scale={width}:{height}:force_original_aspect_ratio=increase,'
+                      f'crop={width}:{height},setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.2,trim=duration={duration},format=yuv420p')
+                _execute([ffmpeg, '-y', '-v', 'error', '-threads', '2', '-i', scene['video_path'], '-an', '-vf', vf,
+                          '-threads', '2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-t', str(duration), target])
+                clips.append(target)
+                overlay = Path(tmp) / f'overlay_{i}.png'
+                picture = scene_overlay(plan, scene, workspace_dir)
+                if preview:
+                    picture = picture.resize((width, height), Image.Resampling.LANCZOS)
+                picture.save(overlay)
+                overlays.append(str(overlay))
+            if progress_callback:
+                progress_callback(65, 'Đang ghép cảnh, chữ và nhạc…')
+            cmd = [ffmpeg, '-y', '-v', 'error', '-filter_complex_threads', '1']
+            for clip in clips:
+                cmd += ['-threads', '2', '-i', clip]
+            for overlay in overlays:
+                cmd += ['-loop', '1', '-framerate', '30', '-i', overlay]
+            music = plan.get('music')
+            has_music = bool(music and settings['music_volume'] > 0)
+            if has_music:
+                cmd += ['-stream_loop', '-1', '-i', music['path']]
+            parts = [f'[{i}:v]settb=AVTB,setpts=PTS-STARTPTS,format=yuv444p,fps=30[b{i}]' for i in range(len(clips))]
+            last = 'b0'
+            for i in range(1, len(clips)):
+                nxt = f'cross{i}'
+                parts.append(f'[{last}][b{i}]xfade=transition=fade:duration=0.4:offset={plan["scenes"][i]["start"]}[{nxt}]')
+                last = nxt
+            for i, scene in enumerate(plan['scenes']):
+                st, et = scene['text_start'], scene['text_end']
+                parts.append(f'[{len(clips) + i}:v]format=rgba,fade=t=in:st={st}:d=0.2:alpha=1,fade=t=out:st={et - .2}:d=0.2:alpha=1[o{i}]')
+                nxt = f'letter{i}'
+                parts.append(f'[{last}][o{i}]overlay=0:0:eof_action=pass:enable=\'gte(t,{st})*lt(t,{et})\'[{nxt}]')
+                last = nxt
+            if has_music:
+                parts.append(f'[{len(clips) * 2}:a]asetpts=PTS-STARTPTS,volume={settings["music_volume"]},afade=t=in:st=0:d=0.6,afade=t=out:st={max(0, plan["duration"] - 1.2)}:d=1.2[a]')
+            cmd += ['-filter_complex', ';'.join(parts), '-map', f'[{last}]']
+            cmd += ['-map', '[a]', '-c:a', 'aac', '-b:a', '192k'] if has_music else ['-an']
+            cmd += ['-threads', '2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22' if preview else '19',
+                    '-pix_fmt', 'yuv420p', '-r', '30', '-t', str(plan['duration']), '-movflags', '+faststart', str(partial)]
+            _execute(cmd)
+        partial.replace(output_path)
+    finally:
+        if partial.exists():
+            partial.unlink()
+    if progress_callback:
+        progress_callback(100, 'Đã hoàn tất.')
+    return dict(success=True, output_path=str(output_path), duration=plan['duration'], slides_count=len(plan['scenes']),
+                resolved_pos=plan['scenes'][0]['resolved_pos'], elapsed=round(time.time() - start, 2),
+                size_bytes=output_path.stat().st_size, plan_id=plan['plan_id'], error=None)
+
+
+def render_reel_video(background_video_path, quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày',
+                      theme_index=0, pos_mode='auto', vertical_offset=0, quote_size=68, credit_size=20,
+                      shade=.70, duration=12., auto_paginate=True, music_path=None, music_volume=.85,
+                      video_volume=0., output_path=None, workspace_dir=None, progress_callback=None, autofit=True):
+    from core.planner import build_plan
+    from core.video_detector import VideoDetector
+    workspace_dir = workspace_dir or os.getcwd()
+    try:
+        plan = build_plan(dict(video_path=background_video_path, quote=quote_text, credit=credit_text,
+                              theme_index=theme_index, pos_mode=pos_mode, vertical_offset=vertical_offset,
+                              quote_size=quote_size, credit_size=credit_size, shade=shade, duration=duration,
+                              auto_paginate=auto_paginate, music_volume=music_volume, autofit=autofit), workspace_dir, VideoDetector(workspace_dir))
+        output_path = output_path or str(Path(workspace_dir) / 'output_videos' / f'Reel_{time.time_ns()}.mp4')
+        return render_plan(plan, output_path, workspace_dir, progress_callback=progress_callback)
+    except Exception as error:
+        return dict(success=False, error=str(error), elapsed=0, output_path=str(output_path or ''))
