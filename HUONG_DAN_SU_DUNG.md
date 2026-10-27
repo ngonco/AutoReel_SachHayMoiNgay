@@ -1,13 +1,13 @@
 # Hướng dẫn Auto Reel Sách Hay Mỗi Ngày
 
-Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v6.exe`.
+Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v7.exe`.
 
 1. Chọn hoặc nhập toàn bộ câu nói. Nhấn Enter để mỗi dòng có chữ thành một cảnh riêng (kể cả khi tắt tự chia cảnh); dòng trống được bỏ qua. Chọn clip cho cảnh đầu.
 2. Bật **Tự chia câu dài thành nhiều cảnh**. Các phần sau tự dùng clip khác trong kho; clip ngắn được làm chậm.
 3. Chọn một trong năm template, cỡ chữ, credit và vị trí chữ.
 4. Xem **Kịch bản reel** để kiểm tra từng phần chữ, clip và thời lượng. Các nút 10/12/15 giây đặt thời lượng tối thiểu; câu dài được tăng thời gian để đọc hết.
 5. Bấm **Phát toàn bộ reel**, chờ dựng bản nhẹ lần đầu. Có đầy đủ cảnh, chữ, chuông thiền và chuyển cảnh giống video xuất. Dùng thanh video để tua; bấm tên cảnh để nhảy đến cảnh đó.
-6. Bấm **Tải video** rồi chọn nơi lưu. Ứng dụng tự xuất Full HD nếu chưa có bản đúng thiết lập trong phiên này; nếu đã xuất thì lưu ngay. Có thể bấm **Xuất reel** để giữ trong thư mục kết quả như trước.
+6. Bấm **Tải video** trên thanh đầu ứng dụng, cạnh nút thư mục, rồi chọn nơi lưu. Ứng dụng tự xuất Full HD nếu chưa có bản đúng thiết lập trong phiên này; nếu đã xuất thì lưu ngay. Có thể bấm **Xuất reel** để giữ trong thư mục kết quả như trước.
 
 Tên file gợi ý là 5 từ đầu câu nói, có dấu tiếng Việt và đuôi `.mp4`; có thể sửa tên. Hộp thoại nhớ thư mục sau khi xác nhận, kể cả khi mở lại ứng dụng. Hủy thì không dựng video. Tải lại bản vừa xuất không tính thêm lượt footage. Nếu lưu lỗi, bản Full HD vẫn còn trong ứng dụng để thử tải sang nơi khác. Thay đổi nội dung trong lúc dựng không đổi file đã yêu cầu tải.
 

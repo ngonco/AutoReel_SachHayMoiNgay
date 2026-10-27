@@ -92,3 +92,9 @@ Nguồn và tài liệu được quản lý trong repo `ngonco/AutoReel_SachHayM
 - Trên UI của chính EXE v6, bấm Tải video và xác nhận hộp thoại Windows đã lưu `Hạnh phúc không phải đến.mp4`: probe 1080×1920, 4.0 giây; API settings giữ đúng last_save_directory. Chủ dự án xác nhận hộp thoại lưu xuất hiện. Lần đầu tải tăng đúng một lượt dựng; copy không tăng lượt riêng.
 - Lỗi ghi đè/quyền ghi được giả lập ở cấp file-copy, không thay quyền Windows hay thư mục cá nhân. Tính khớp snapshot và tải lại kiểm tra bằng bộ kiểm tra UI độc lập; hộp thoại thật có thao tác xác nhận của người dùng.
 - Mở qua BAT tại cổng 8777, đối chiếu PID/đường dẫn là AutoReelSachHay_v6.exe; UI giữ bản nháp và kho 59 clip. Ảnh nút tải: `test_renders/verification/v6_download.png`. File tải trùng SHA256 với bản render nội bộ (`ed365bb2b29b1a90c6b766a53655fa64346beebc2c6a5994040b5bb01ad1e9b1`). Phiên thử riêng được đóng bằng helper sở hữu tiến trình; bản chính v6 được giữ mở.
+
+## Bổ sung v7 — nút tải trên thanh đầu (2026-10-27)
+
+- Chuyển duy nhất btnDownloadVideo vào header cạnh nút thư mục, giữ nguyên xử lý tải. Kiểm tra HTML có đúng một ID và thuộc header; bộ kiểm tra luồng tải JavaScript và kiểm tra cú pháp đều đạt.
+- Build lại `AutoReelSachHay_v7.exe`: 204348291 bytes, SHA256 `9CB9D189894CE8049801D967EA87C0195AD5BDCD25C5535A9321EC6D8A98314C`. BAT/VBS ưu tiên v7, không thay EXE cũ đang chạy.
+- Mở qua BAT tại cổng 8778, xác nhận PID thuộc EXE v7. Kiểm tra UI thật: nút ở trên đầu, màu vàng, cạnh thư mục; cuộn đến cuối vẫn nhìn thấy nút. Ảnh `test_renders/verification/v7_download_top.png`. Không đổi renderer/planner và không cần dựng lại video mẫu cho thay đổi vị trí nút.

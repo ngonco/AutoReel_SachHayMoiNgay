@@ -30,6 +30,7 @@ body {
 
 /* TOPBAR */
 .topbar {
+  gap: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -43,6 +44,7 @@ body {
 }
 
 .logo {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -80,6 +82,7 @@ body {
 }
 
 .top-actions {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -633,6 +636,14 @@ input[type="range"] {
 }
 
 /* RESPONSIVE */
+@media (max-width: 1400px) {
+  .top-actions .badge:not(.gold) {display:none;}
+}
+@media (max-width: 1100px) {
+  .topbar {flex-wrap:wrap;gap:12px;}
+  .top-actions {flex-wrap:wrap;gap:8px;}
+  .top-actions .badge {display:none;}
+}
 @media (max-width: 1024px) {
   .layout {
     grid-template-columns: 1fr;

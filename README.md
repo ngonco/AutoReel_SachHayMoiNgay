@@ -10,7 +10,7 @@
 
 ## Chạy
 
-Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v6.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Kho clip vẫn nằm cạnh ứng dụng.
+Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v7.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Kho clip vẫn nằm cạnh ứng dụng.
 
 Chạy từ mã nguồn trên Windows, Python 3.11:
 
@@ -42,7 +42,7 @@ python -X utf8 build_onefile.py
 
 `verify_samples.py` cần kho clip thật và xuất ba mẫu (một, hai, ba cảnh) ở cả bản nhẹ và Full HD. Kết quả ở `output_videos/verification`; ảnh kiểm tra và báo cáo ở `test_renders/verification`.
 
-Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v6.previous.exe`.
+Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v7.previous.exe`.
 
 Bắt buộc sau mỗi đợt sửa code, kể cả giao diện: đóng gói lại EXE từ code cuối cùng, mở qua launcher và kiểm tra chức năng vừa sửa trên bản đóng gói trước khi bàn giao. Không giao EXE cũ sau khi chỉ kiểm tra mã nguồn. Chỉ sửa tài liệu thì không cần build lại.
 
@@ -63,7 +63,7 @@ Trong mục vị trí chữ, bật **Viền chữ mềm** để chữ nổi rõ 
 
 ### Tải video về nơi đã chọn
 
-**Tải video** mở hộp thoại Lưu video của Windows trước khi dựng. Tên gợi ý lấy 5 từ đầu câu nói (Enter tính như khoảng trắng), giữ dấu tiếng Việt và bỏ ký tự không hợp lệ; bạn có thể sửa tên. Thư mục được nhớ sau khi xác nhận, kể cả khi mở lại ứng dụng. Hủy thì không dựng và không tính lượt footage. File trùng tên được hỏi ghi đè.
+Nút **Tải video** nằm trên thanh đầu ứng dụng, cạnh nút thư mục video đã xuất, luôn nhìn thấy khi cuộn. Nút mở hộp thoại Lưu video của Windows trước khi dựng. Tên gợi ý lấy 5 từ đầu câu nói (Enter tính như khoảng trắng), giữ dấu tiếng Việt và bỏ ký tự không hợp lệ; bạn có thể sửa tên. Thư mục được nhớ sau khi xác nhận, kể cả khi mở lại ứng dụng. Hủy thì không dựng và không tính lượt footage. File trùng tên được hỏi ghi đè.
 
 Video tải là MP4 Full HD 1080×1920. Tải lại bản vừa xuất không dựng lại và không tăng lượt footage. Nếu chỉnh nội dung trong lúc chờ, file tải vẫn dùng nội dung lúc bấm nút. Lưu lỗi không làm mất bản xuất nội bộ; chọn nơi khác rồi tải lại. Bản xuất nội bộ vẫn nằm trong `output_videos`; xuất hàng loạt giữ nguyên.
 

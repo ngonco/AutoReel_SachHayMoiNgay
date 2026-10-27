@@ -45,7 +45,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v6, rồi v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v7, rồi v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -163,6 +163,8 @@ Frontend giữ nguyên quote (kể cả dòng trống/trailing Enter), quote_ind
 
 ### Tải video v6
 
+V7 chuyển duy nhất nút btnDownloadVideo lên .top-actions trong header sticky, cạnh nút mở thư mục; giữ ID và luồng xử lý. Bố cục thu gọn badge trên màn hình hẹp và cho header xuống hàng để nút không tràn. Chỉ thay giao diện, không đổi renderer hoặc PLAN_VERSION.
+
 `core.downloads.SaveVideoService` tuần tự hóa hộp thoại tkinter Lưu video, dùng thư mục `last_save_directory` từ session_state.json; nếu không tồn tại dùng output_videos. Sau xác nhận mới ghi nhớ thư mục bằng merge patch. Frontend không gửi lại field này trong autosave để tránh giá trị cũ ghi đè thư mục vừa chọn. Field bị loại khỏi plan/settings/hash; không đổi PLAN_VERSION vì không đổi dựng/layout/planning.
 
 Tên gợi ý là 5 token whitespace đầu sau NFC, bỏ ký tự Windows cấm và dấu chấm/khoảng trắng cuối, tối đa 160 ký tự; fallback Reel, bảo vệ tên thiết bị CON/PRN/COM…; đuôi .mp4. Hộp thoại cho sửa tên và xác nhận ghi đè. Hủy trả cancelled:true, không submit export. Đường dẫn đích do native picker cấp, giữ sau save_token trong RAM (tối đa 100 lựa chọn), không nhận đường dẫn tùy ý từ API save. Token mất khi server khởi động lại; thư mục vẫn được nhớ.
@@ -191,7 +193,7 @@ python -X utf8 build_onefile.py
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v6 trước ở `AutoReelSachHay_v6.previous.exe`, copy bản mới tên `AutoReelSachHay_v6.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v7 trước ở `AutoReelSachHay_v7.previous.exe`, copy bản mới tên `AutoReelSachHay_v7.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 
