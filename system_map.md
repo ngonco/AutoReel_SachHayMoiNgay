@@ -45,7 +45,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v5, rồi v4, rồi v3, rồi v2, rồi EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v6, rồi v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -149,6 +149,8 @@ HTTP chỉ cục bộ. JSON lỗi `{success:false,error}` với HTTP 400. File t
 | GET `/api/rendered_video/{filename}` | MP4 Full HD |
 | GET `/api/thumb/{filename}` | thumbnail ảnh |
 | POST `/api/select_video` | native picker, trả local video metadata; cancel → video:null |
+| POST `/api/select_save_video` | quote → hộp thoại Lưu video; trả cancelled hoặc save_token + filename |
+| POST `/api/save_video` | save_token + render_job_id Full HD hoàn tất → job sao chép HTTP 202; result.saved_path khi xong |
 | POST `/api/open_folder` | mở output_videos |
 
 `core.jobs.JobManager` dùng ThreadPoolExecutor một worker cho mọi job; thêm khóa export liên tiến trình và giữ chỗ footage. Preview cùng plan đang chờ/chạy được gộp; preview đã có file hợp lệ dùng cache. Job lưu RAM, không tự tiếp tục sau restart. Batch báo files/failures theo từng câu, không trả thành công giả khi một phần thất bại.
@@ -158,6 +160,16 @@ HTTP chỉ cục bộ. JSON lỗi `{success:false,error}` với HTTP 400. File t
 Tự lưu v5: `core.settings.load_settings()` đọc `session_state.json`; nếu chưa có mới nhập từ settings.json cũ. Bản v5 ghi file riêng để các EXE cũ còn mở không thể ghi đè bản nháp mới. `save_settings_patch()` nhận patch từng field, không reset field bị bỏ qua; `_client_id` + `_sequence` ngăn request cũ ghi đè request mới cùng trang. File ghi qua temp riêng + fsync + replace, có khóa liên phiên trong `core.persistence`.
 
 Frontend giữ nguyên quote (kể cả dòng trống/trailing Enter), quote_index, video_path, safe_zone và mọi control nội dung/thiết kế/âm lượng. UI báo Đang lưu/Đã lưu tự động/lỗi và tự thử lại; hàng đợi save gửi tuần tự, debounce 250ms, pagehide gửi beacon/keepalive. Reload khôi phục bản nháp và clip đã chọn; render không thay quote trong bản tự lưu. Safe zone chỉ là trạng thái xem, không vẽ vào MP4. Các field nháp được loại khỏi settings của plan để không tạo cache render vì thay đổi chế độ xem.
+
+### Tải video v6
+
+`core.downloads.SaveVideoService` tuần tự hóa hộp thoại tkinter Lưu video, dùng thư mục `last_save_directory` từ session_state.json; nếu không tồn tại dùng output_videos. Sau xác nhận mới ghi nhớ thư mục bằng merge patch. Frontend không gửi lại field này trong autosave để tránh giá trị cũ ghi đè thư mục vừa chọn. Field bị loại khỏi plan/settings/hash; không đổi PLAN_VERSION vì không đổi dựng/layout/planning.
+
+Tên gợi ý là 5 token whitespace đầu sau NFC, bỏ ký tự Windows cấm và dấu chấm/khoảng trắng cuối, tối đa 160 ký tự; fallback Reel, bảo vệ tên thiết bị CON/PRN/COM…; đuôi .mp4. Hộp thoại cho sửa tên và xác nhận ghi đè. Hủy trả cancelled:true, không submit export. Đường dẫn đích do native picker cấp, giữ sau save_token trong RAM (tối đa 100 lựa chọn), không nhận đường dẫn tùy ý từ API save. Token mất khi server khởi động lại; thư mục vẫn được nhớ.
+
+Frontend chụp payload tại lúc bấm Tải, chọn nơi lưu rồi dùng lại lastExport nếu khóa nội dung/thiết lập khớp và MP4 còn tồn tại (Range 0–0). Nếu cần dựng, renderSnapshot gọi planner và JobManager export hiện tại, tự thử lại một lần khi footage_conflict; không thay preview của bản nháp mới khi nội dung đã đổi. lastExport chỉ nằm trong trang hiện tại; reload/restart cần dựng lại khi tải, còn bản xuất cũ vẫn ở output_videos.
+
+Job export có kind=export/preview. JobManager.save_video chỉ nhận ID kind=export đã done, file thực trong output_videos; không nhận preview, file ngoài hay job lỗi. Save job kind=save chạy trên hàng đợi hiện có, sao chép thành file tạm cùng thư mục đích, fsync rồi replace; lỗi không phá file đích cũ và vẫn giữ bản Full HD. Tải/copy không reserve hoặc tăng footage. Cùng token đã submit trả lại save job trước, lỗi cho thử lại. UI có tiến độ/lỗi/đường dẫn thành công; khóa nút xuất và tải trong khi tải.
 
 `core.settings.normalize_settings()` là nơi duy nhất chuyển camelCase cũ sang snake_case, chuẩn hóa shade/volume 0..1 từ giá trị phần trăm cũ và giới hạn giá trị. UI lưu snake_case. File mẫu dùng snake_case. Không lặp mapping ở renderer/UI. `vertical_offset` nhận −1600..+1600 px (tên cũ verticalOffset vẫn đọc được); thanh trượt và ô số đồng bộ từng pixel. Layout vẫn clamp toàn khối vào 180..1651 để không cắt chân. Giá trị Y là độ dịch yêu cầu, có thể chạm giới hạn an toàn trước khi hết thanh trượt.
 
@@ -170,6 +182,7 @@ python -X utf8 build_onefile.py
 ```
 
 - Unit: đủ chữ/dấu, trần số từ, timeline/overlap, migration settings, bố cục footer 5 theme × 3 vị trí × 2 offset, clip ngắn, kho trống/một clip, vòng chọn clip và plan lỗi thời.
+- Download: `tests/test_downloads.py` kiểm tra tên, nhớ thư mục, cancel, token/job hợp lệ, copy/ghi đè nguyên tử, lỗi lưu và cache không đổi. `node tests/test_download_ui.js` kiểm tra cancel, dùng lại export, đổi thiết lập, snapshot lúc click, thử lại copy và không ghi đè thư mục bằng autosave. Kiểm tra hộp thoại thật trên EXE mới.
 - `verify_v5.py --exe AutoReelSachHay_v5.exe --hold`: kiểm tra EXE trên profile riêng với 3 clip màu, lưu draft/late request, preview không tiêu hao, 2 xuất đơn + 2 batch, đối chiếu màu frame, restart EXE và có thể giữ phiên để kiểm tra UI. Cần psutil (máy phát triển hiện dùng 7.0.0); chỉ đóng tiến trình thử do helper tạo.
 - `verify_outline.py --base URL`: tạo bảng so sánh 5 theme với viền tắt/mềm/đậm, kiểm tra API màu/tắt/opacity 0 và xuất cặp preview/Full HD có viền bằng EXE đang chạy. Không sửa settings cá nhân.
 - `verify_manual_lines.py --base URL`: kiểm tra Enter/CRLF/dòng trống, ưu tiên thủ công khi auto tắt, API Y rộng và xuất cặp preview/Full HD với đúng ba dòng.
@@ -178,7 +191,7 @@ python -X utf8 build_onefile.py
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v5 trước ở `AutoReelSachHay_v5.previous.exe`, copy bản mới tên `AutoReelSachHay_v5.exe` sang gốc và dist. Bản `AutoReelSachHay.exe` cũ không bị thay khi còn phiên đang chạy; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v6 trước ở `AutoReelSachHay_v6.previous.exe`, copy bản mới tên `AutoReelSachHay_v6.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 
@@ -193,6 +206,7 @@ python -X utf8 build_onefile.py
 | API/streaming | app.py; byte range tests |
 | Hàng đợi/progress/cache job | jobs.py |
 | Tự lưu/khôi phục bản nháp | settings.py + persistence.py + app.js |
+| Tải video/chọn nơi lưu/tên 5 từ | downloads.py + jobs.py + app.js; không dựng lại khi chỉ sao chép |
 | Lượt footage/chống bản sao nội dung | footage_pool.py + planner.py + jobs.py; không bỏ khóa/reservation |
 | Nhận diện/chất lượng nguồn | video_detector + media.probe |
 | Cài đặt cũ/mới | settings.py + settings.example.json |

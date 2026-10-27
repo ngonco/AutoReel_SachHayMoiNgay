@@ -19,7 +19,7 @@ def fingerprint(path):
 
 
 def build_plan(payload, workspace_dir, detector):
-    settings = {k:v for k,v in normalize_settings(payload).items() if k not in ('quote','quote_index','video_path','safe_zone')}
+    settings = {k:v for k,v in normalize_settings(payload).items() if k not in ('quote','quote_index','video_path','safe_zone','last_save_directory')}
     text = '\n'.join(' '.join(line.split()) for line in unicodedata.normalize('NFC', str(payload.get('quote') or '')).splitlines() if line.strip())
     if not text:
         raise ValueError('Hãy nhập nội dung câu nói.')

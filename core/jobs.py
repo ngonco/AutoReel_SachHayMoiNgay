@@ -28,7 +28,7 @@ class JobManager:
             job_id=uuid.uuid4().hex
             target=Path(output_path) if output_path else (self.workspace_dir/'.cache'/'previews'/(plan['plan_id']+'.mp4') if preview else self.workspace_dir/'output_videos'/f'Reel_{job_id[:12]}.mp4')
             if not preview:self.pool.reserve(plan,job_id)
-            self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,message='Đang chờ dựng…',plan_id=plan['plan_id'])
+            self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,message='Đang chờ dựng…',plan_id=plan['plan_id'],kind='preview' if preview else 'export')
             self.pending[key]=job_id
             try:self.executor.submit(self._work,job_id,key,plan,target,preview)
             except Exception:
@@ -60,6 +60,32 @@ class JobManager:
             with self.lock:self.jobs[job_id].update(status='error',error=str(error),code=getattr(error,'code',None),message=str(error))
         finally:
             with self.lock:self.pending.pop(key,None)
+
+    def save_video(self, render_job_id, destination):
+        source_job = self.get(render_job_id)
+        if source_job.get('kind') != 'export' or source_job['status'] != 'done':
+            raise ValueError('Cần video Full HD đã xuất thành công để tải.')
+        result = source_job['result']
+        filename = result['filename']
+        source = self.workspace_dir / 'output_videos' / filename
+        if Path(filename).name != filename or source.resolve().parent != (self.workspace_dir / 'output_videos').resolve() or not source.is_file():
+            raise ValueError('Video xuất không còn tồn tại. Hãy xuất lại video.')
+        job_id = uuid.uuid4().hex
+        with self.lock:
+            self.jobs[job_id] = dict(job_id=job_id,kind='save',status='queued',progress=0,message='Đang chờ lưu video…',plan_id=source_job['plan_id'])
+            self.executor.submit(self._save_work, job_id, source, Path(destination))
+        return self.get(job_id)
+
+    def _save_work(self, job_id, source, destination):
+        from core.downloads import copy_video
+        def progress(percent, message):
+            with self.lock:self.jobs[job_id].update(progress=percent,message=message)
+        with self.lock:self.jobs[job_id]['status']='running'
+        try:
+            copy_video(source, destination, progress)
+            with self.lock:self.jobs[job_id].update(status='done',progress=100,message='Đã lưu video.',result=dict(success=True,saved_path=str(destination),filename=destination.name))
+        except Exception as error:
+            with self.lock:self.jobs[job_id].update(status='error',error=f'Không lưu được video: {error}',message='Lưu video thất bại. Bản Full HD vẫn được giữ trong ứng dụng.')
 
     def batch(self,items,detector=None):
         if detector is None:

@@ -4,7 +4,7 @@ DEFAULTS = dict(credit='Thanh Vị Sách Hay Mỗi Ngày', credit_size=20, quote
                 duration=12, auto_paginate=True, autofit=True, music_volume=.85,
                 outline_enabled=True, outline_color='auto', outline_width=4,
                 outline_blur=8, outline_opacity=.85,
-                quote=None, quote_index=0, video_path='', safe_zone=False)
+                quote=None, quote_index=0, video_path='', safe_zone=False, last_save_directory='')
 ALIASES = dict(creditSize='credit_size', quoteSize='quote_size', themeIndex='theme_index',
                posMode='pos_mode', verticalOffset='vertical_offset', autoPaginate='auto_paginate',
                musicVolume='music_volume', outlineEnabled='outline_enabled', outlineColor='outline_color',
@@ -33,6 +33,7 @@ def normalize_settings(values=None):
         raise ValueError('Nội dung tối đa 20.000 ký tự.')
     result['quote_index'] = max(0, min(10000, int(result['quote_index'])))
     result['video_path'] = str(result['video_path'] or '')
+    result['last_save_directory'] = str(result['last_save_directory'] or '')
     import re
     color = str(result['outline_color']).lower()
     result['outline_color'] = color if color == 'auto' or re.fullmatch(r'#[0-9a-f]{6}', color) else DEFAULTS['outline_color']

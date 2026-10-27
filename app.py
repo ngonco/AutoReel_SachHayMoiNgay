@@ -34,9 +34,11 @@ from core.planner import build_plan, load_plan
 from core.renderer import scene_overlay
 from core.settings import normalize_settings, save_settings_patch, load_settings
 from core.jobs import JobManager
+from core.downloads import SaveVideoService
 
 video_detector = None
 jobs = None
+downloads = None
 settings_lock = threading.Lock()
 
 
@@ -118,6 +120,10 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 return self._send_json(dict(success=True, settings=settings))
             if path == '/api/plan':
                 return self._send_json(build_plan(body, BASE_DIR, video_detector))
+            if path == '/api/select_save_video':
+                return self._send_json(downloads.select(body.get('quote', '')))
+            if path == '/api/save_video':
+                return self._send_json(downloads.save(str(body.get('save_token', '')), str(body.get('render_job_id', '')), jobs), 202)
             if path in ('/api/preview', '/api/render'):
                 plan = load_plan(str(body['plan_id']), BASE_DIR) if body.get('plan_id') else build_plan(body, BASE_DIR, video_detector)
                 job = jobs.submit(plan, preview=path == '/api/preview')
@@ -236,7 +242,7 @@ def launch_app_window(url):
 
 
 def main():
-    global video_detector, jobs
+    global video_detector, jobs, downloads
     logs = BASE_DIR / 'logs'
     logs.mkdir(exist_ok=True)
     logging.basicConfig(filename=logs / 'app.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -247,6 +253,7 @@ def main():
         sys.stderr = sys.stdout
     video_detector = VideoDetector(BASE_DIR)
     jobs = JobManager(BASE_DIR)
+    downloads = SaveVideoService(BASE_DIR)
     if '--batch' in sys.argv:
         videos = video_detector.scan_all_videos()
         if not videos:

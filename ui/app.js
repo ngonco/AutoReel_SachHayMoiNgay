@@ -5,7 +5,7 @@ const canvas = $('previewCanvas'), ctx = canvas.getContext('2d'), player = $('pr
 const THEME_NAMES = ['Thiền Vàng', 'Tinh Khôi', 'Kinh Điển', 'Điện Ảnh', 'Sen Giấy'];
 const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null, plan: null,
   revision: 0, planPromise: null, selectedScene: 0, loadedPlan: null, loadedKind: null,
-  lastRenderedUrl: null, previewUrl: null, busyPreview: false, ready: false,
+  lastRenderedUrl: null, lastExport: null, previewUrl: null, busyPreview: false, ready: false,
   settings: {credit_size:20, quote_size:68, theme_index:0, pos_mode:'auto', vertical_offset:0,
     shade:.7, duration:12, auto_paginate:true, autofit:true, music_volume:.85,
     outline_enabled:true, outline_color:'auto', outline_width:4, outline_blur:8, outline_opacity:.85}};
@@ -20,7 +20,8 @@ async function api(path, body) {
   return data;
 }
 function payload() {
-  return {...state.settings, quote:$('quoteInput').value.normalize('NFC'), quote_index:state.currentQuoteIndex,
+  const {last_save_directory, ...settings}=state.settings;
+  return {...settings, quote:$('quoteInput').value.normalize('NFC'), quote_index:state.currentQuoteIndex,
     credit:$('creditInput').value.normalize('NFC'), video_path:state.currentVideo?.path || '', safe_zone:$('safeZoneCheck').checked};
 }
 function changedSettings(snapshot) {
@@ -279,21 +280,58 @@ function renderProgress(job) {
   $('progressBox').classList.add('active');$('progressBarFill').style.width=job.progress+'%';
   $('progressPercent').textContent=job.progress+'%';$('progressStatus').textContent=job.message;
 }
+function exportKey(snapshot) {
+  return JSON.stringify(Object.fromEntries(Object.entries(snapshot).filter(([key])=>!['quote_index','safe_zone','last_save_directory'].includes(key)).sort(([a],[b])=>a.localeCompare(b))));
+}
+function exportBusy(busy) {
+  $('btnRenderSingle').disabled=busy;$('btnDownloadVideo').disabled=busy;
+}
+function exportError(error) {
+  $('progressBox').classList.add('active');$('progressStatus').textContent=error.message;
+}
+async function renderSnapshot(snapshot,revision) {
+  if(revision===state.revision) {
+    clearTimeout(planTimer);revision=++state.revision;state.planPromise=null;state.loadedPlan=null;showStatic();
+    $('btnWatchRendered').style.display='none';
+  }
+  for(let attempt=0;attempt<2;attempt++) {
+    const plan=await api('/api/plan',snapshot);
+    if(revision===state.revision) {state.plan=plan;state.selectedScene=0;renderScenes();drawStill();}
+    try {
+      const job=await api('/api/render',{plan_id:plan.plan_id,async:true});
+      const result=await pollJob(job,renderProgress);
+      const exported={jobId:job.job_id,key:exportKey(snapshot),result};
+      state.lastExport=exported;
+      if(revision===state.revision) {state.lastRenderedUrl=result.url;$('btnWatchRendered').style.display='inline-flex';}
+      return exported;
+    } catch(error) {if(error.code!=='footage_conflict'||attempt===1)throw error;}
+  }
+}
 async function renderSingle() {
-  const button=$('btnRenderSingle');button.disabled=true;
+  const snapshot=payload(),revision=state.revision;exportBusy(true);
   try {
-    let plan,result,revision;
-    for(let attempt=0;attempt<2;attempt++) {
-      clearTimeout(planTimer);state.revision++;state.plan=null;state.planPromise=null;state.loadedPlan=null;showStatic();
-      $('btnWatchRendered').style.display='none';
-      plan=await ensurePlan();revision=state.revision;
-      try {result=await pollJob(await api('/api/render',{plan_id:plan.plan_id,async:true}),renderProgress);break;}
-      catch(error){if(error.code!=='footage_conflict'||attempt===1)throw error;}
+    const exported=await renderSnapshot(snapshot,revision);
+    $('progressStatus').textContent=`Đã xuất ${timeLabel(exported.result.duration)} · ${exported.result.filename}`;
+  } catch(error) {exportError(error);}
+  finally {exportBusy(false);}
+}
+async function downloadVideo() {
+  const snapshot=payload(),revision=state.revision;exportBusy(true);
+  try {
+    if(!snapshot.quote.trim())throw new Error('Hãy nhập nội dung câu nói trước khi tải.');
+    const selection=await api('/api/select_save_video',{quote:snapshot.quote});
+    if(selection.cancelled)return;
+    let exported=state.lastExport?.key===exportKey(snapshot)?state.lastExport:null;
+    if(exported) {
+      const response=await fetch(exported.result.url,{headers:{Range:'bytes=0-0'}});
+      await response.arrayBuffer();
+      if(!response.ok)exported=null;
     }
-    $('progressStatus').textContent=`Đã xuất ${timeLabel(result.duration)} · ${result.filename}`;
-    if(revision===state.revision) {state.lastRenderedUrl=result.url;$('btnWatchRendered').style.display='inline-flex';}
-  } catch(error) {$('progressBox').classList.add('active');$('progressStatus').textContent=error.message;}
-  finally {button.disabled=false;}
+    if(!exported)exported=await renderSnapshot(snapshot,revision);
+    const result=await pollJob(await api('/api/save_video',{save_token:selection.save_token,render_job_id:exported.jobId}),renderProgress);
+    $('progressStatus').textContent=`Đã lưu video: ${result.saved_path}`;
+  } catch(error) {exportError(error);}
+  finally {exportBusy(false);}
 }
 async function renderBatch() {
   const button=$('btnStartBatchRender');button.disabled=true;
@@ -335,6 +373,7 @@ async function initApp() {
     $('btnWatchRendered').onclick=()=>{if(state.lastRenderedUrl&&state.plan)playUrl(state.lastRenderedUrl,'export',state.plan).catch(error=>status(error.message,true));};
     $('btnOpenFolder').onclick=()=>api('/api/open_folder',{}).catch(error=>status(error.message,true));
     $('btnRenderSingle').onclick=renderSingle;
+    $('btnDownloadVideo').onclick=downloadVideo;
     $('btnBatchRender').onclick=()=>{$('batchModal').classList.add('active');};
     $('btnCloseBatchModal').onclick=()=>$('batchModal').classList.remove('active');
     $('btnStartBatchRender').onclick=renderBatch;
@@ -348,6 +387,7 @@ async function initApp() {
       $('playbackTime').textContent=`${timeLabel(player.currentTime)} / ${timeLabel(state.plan.duration)}`;
     };
     state.ready=true;
+    $('btnDownloadVideo').disabled=false;
     queueSave();
     await ensurePlan();
   } catch(error) {status(error.message,true);}
