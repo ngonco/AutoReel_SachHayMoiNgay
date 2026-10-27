@@ -44,7 +44,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v2, rồi EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v3, rồi v2, rồi EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -82,7 +82,7 @@ Chạy phát triển: `python -X utf8 app.py`. Chạy API thử: `python -X utf8
 
 `core.planner.build_plan(payload, workspace_dir, detector)` nhận quote, video_path tùy chọn và settings. Trả JSON plan gồm:
 
-- `plan_id`: SHA256 rút gọn 24 hex; `version`, `settings`, `quote`, `duration`, `transition`, `music`, `scenes`.
+- `plan_id`: SHA256 rút gọn 24 hex; `version`, `settings`, `quote`, `segmentation_mode`, `duration`, `transition`, `music`, `scenes`. `quote` giữ ranh giới xuống dòng; `segmentation_mode` là manual_lines/auto/single.
 - Mỗi scene có `index`, `text`, `video_name`, `video_path`, `thumb_url`, `resolved_pos`.
 - `start/end`: khoảng nền gồm phần overlap. `text_start/text_end`: khoảng phần chữ độc lập; không chồng hai phần chữ.
 - `source_start/source_end`, `speed`: đoạn gốc và tốc độ. `source/source_info`: fingerprint và metadata FFprobe.
@@ -91,7 +91,7 @@ Chạy phát triển: `python -X utf8 app.py`. Chạy API thử: `python -X utf8
 
 ### Chia chữ và thời gian
 
-`core.paginator`: chia theo token whitespace, giữ nguyên chữ, dấu câu và thứ tự sau NFC; quy hoạch động ưu tiên ranh giới dấu câu, tránh tách các cụm từ tiếng Việt phổ biến hoặc để hư từ ở cuối cảnh, và cân đối độ dài. Mục tiêu 12–18 từ, trần 24 từ. Tắt auto_paginate thì giữ toàn bộ câu một cảnh.
+`core.paginator`: chia theo token whitespace, giữ nguyên chữ, dấu câu và thứ tự sau NFC; quy hoạch động ưu tiên ranh giới dấu câu, tránh tách các cụm từ tiếng Việt phổ biến hoặc để hư từ ở cuối cảnh, và cân đối độ dài. Mục tiêu 12–18 từ, trần 24 từ. Nếu nội dung có từ hai dòng có chữ, mỗi dòng là đúng một cảnh thủ công, không tự chia nhỏ thêm và không ghép qua dòng; bỏ dòng trống, chuẩn hóa CRLF/NFC/khoảng trắng trong dòng. Quy tắc xuống dòng ưu tiên cả khi auto_paginate tắt. Với một dòng, vẫn dùng tự chia cảnh như trước; tắt auto_paginate thì giữ nguyên một cảnh. Bọc chữ theo chiều ngang trong textarea không phải Enter và không tạo cảnh mới. Dòng thủ công rất dài vẫn phải vừa layout; nếu không vừa sẽ yêu cầu rút ngắn hoặc thêm Enter.
 
 Thời gian đọc cơ sở mỗi phần `max(4, số từ/3 + 0.8)` giây, làm tròn lên khung 30 fps. Nếu tổng thấp hơn thời lượng tối thiểu đã chọn, phân bổ phần còn lại theo số từ. Không ép câu dài vào 10–15 giây. Chữ fade 0,2 giây ở hai đầu mỗi phần; đủ thời gian đọc ổn định sau fade.
 
@@ -141,7 +141,7 @@ HTTP chỉ cục bộ. JSON lỗi `{success:false,error}` với HTTP 400. File t
 
 `ui/app.js`: gọi plan sau thay đổi với debounce, dùng revision để bỏ kết quả đến muộn. Không tính timeline hay tự vẽ template nữa. Ảnh tĩnh: thumbnail + overlay máy chủ. Play: tạo/poll preview job rồi bật video controls và tắt canvas. Các chức năng pause/resume/seek/ended dựa trên video thật. Sửa nội dung/clip/settings làm plan/preview/export URL hiện tại hết hiệu lực. Kết quả job cũ vẫn có thể còn trong cache, nhưng không phát nhầm lên thiết lập mới.
 
-`core.settings.normalize_settings()` là nơi duy nhất chuyển camelCase cũ sang snake_case, chuẩn hóa shade/volume 0..1 từ giá trị phần trăm cũ và giới hạn giá trị. UI lưu snake_case. File mẫu dùng snake_case. Không lặp mapping ở renderer/UI.
+`core.settings.normalize_settings()` là nơi duy nhất chuyển camelCase cũ sang snake_case, chuẩn hóa shade/volume 0..1 từ giá trị phần trăm cũ và giới hạn giá trị. UI lưu snake_case. File mẫu dùng snake_case. Không lặp mapping ở renderer/UI. `vertical_offset` nhận −1600..+1600 px (tên cũ verticalOffset vẫn đọc được); thanh trượt và ô số đồng bộ từng pixel. Layout vẫn clamp toàn khối vào 180..1651 để không cắt chân. Giá trị Y là độ dịch yêu cầu, có thể chạm giới hạn an toàn trước khi hết thanh trượt.
 
 ## 5. Kiểm tra, build và sửa lỗi
 
@@ -152,12 +152,13 @@ python -X utf8 build_onefile.py
 ```
 
 - Unit: đủ chữ/dấu, trần số từ, timeline/overlap, migration settings, bố cục footer 5 theme × 3 vị trí × 2 offset, clip ngắn, kho trống/một clip, vòng chọn clip và plan lỗi thời.
+- `verify_manual_lines.py --base URL`: kiểm tra Enter/CRLF/dòng trống, ưu tiên thủ công khi auto tắt, API Y rộng và xuất cặp preview/Full HD với đúng ba dòng.
 - `verify_samples.py`: 3 quote (1/2/3 cảnh) × 2 độ phân giải; probe kích thước/duration, decode toàn video, ảnh tại từng cảnh/transition/cuối và bảng stress credit dài.
 - `verify_api.py --base http://127.0.0.1:8767` kiểm tra server đang chạy (đổi cổng theo phiên): health, plan/overlay, dedup/hàng đợi, không chặn health trong render, byte ranges/416, preview/export và lỗi đầu vào. Script không sửa settings cá nhân.
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v2 trước ở `AutoReelSachHay_v2.previous.exe`, copy bản mới tên `AutoReelSachHay_v2.exe` sang gốc và dist. Bản `AutoReelSachHay.exe` cũ không bị thay khi còn phiên đang chạy; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v3 trước ở `AutoReelSachHay_v3.previous.exe`, copy bản mới tên `AutoReelSachHay_v3.exe` sang gốc và dist. Bản `AutoReelSachHay.exe` cũ không bị thay khi còn phiên đang chạy; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 

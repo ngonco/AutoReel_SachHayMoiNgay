@@ -66,7 +66,7 @@ function timeLabel(t) {return Number(t).toFixed(1) + 's';}
 function renderScenes() {
   const plan = state.plan;
   if (!plan) return;
-  $('paginationBadge').textContent = `${plan.scenes.length} cảnh · ${timeLabel(plan.duration)}`;
+  $('paginationBadge').textContent = `${plan.scenes.length} cảnh${plan.segmentation_mode === 'manual_lines' ? ' theo dòng' : ''} · ${timeLabel(plan.duration)}`;
   $('totalDuration').textContent = `Tổng reel: ${timeLabel(plan.duration)} · tối thiểu ${state.settings.duration}s`;
   $('btnRenderSingle').textContent = `▶ XUẤT REEL · ${timeLabel(plan.duration)}`;
   $('previewStyleName').textContent = THEME_NAMES[state.settings.theme_index];
@@ -163,8 +163,18 @@ function applySettings() {
   const sliders={verticalSlider:['vertical_offset','verticalVal',' px',1],shadeSlider:['shade','shadeVal','%',100],quoteSizeSlider:['quote_size','quoteSizeVal','',1],creditSizeSlider:['credit_size','creditSizeVal','',1],musicVolSlider:['music_volume','musicVolVal','%',100]};
   Object.entries(sliders).forEach(([id,[key,label,suffix,factor]])=>{
     $(id).value=Math.round(s[key]*factor);$(label).textContent=$(id).value+suffix;
-    $(id).oninput=()=>{s[key]=Number($(id).value)/factor;$(label).textContent=$(id).value+suffix;invalidate();};
+    $(id).oninput=()=>{s[key]=Number($(id).value)/factor;$(label).textContent=$(id).value+suffix;if(key==='vertical_offset')$('verticalNumber').value=s[key];invalidate();};
   });
+  $('verticalNumber').value=s.vertical_offset;
+  $('verticalNumber').onchange=()=>{
+    const input=$('verticalNumber');
+    if(input.value.trim()==='' || !Number.isFinite(input.valueAsNumber)) {input.value=s.vertical_offset;return;}
+    s.vertical_offset=Math.max(Number(input.min),Math.min(Number(input.max),Math.trunc(input.valueAsNumber)));
+    input.value=s.vertical_offset;
+    $('verticalSlider').value=s.vertical_offset;
+    $('verticalVal').textContent=s.vertical_offset+' px';
+    invalidate();
+  };
   [['autofitCheck','autofit'],['autoPaginateCheck','auto_paginate']].forEach(([id,key])=>{$(id).checked=s[key];$(id).onchange=()=>{s[key]=$(id).checked;invalidate();};});
   document.querySelectorAll('.pos-chip').forEach(el=>{el.classList.toggle('active',el.dataset.pos===s.pos_mode);el.onclick=()=>{s.pos_mode=el.dataset.pos;applySettings();invalidate();};});
   document.querySelectorAll('.template-btn').forEach(el=>{el.classList.toggle('active',Number(el.dataset.theme)===s.theme_index);el.onclick=()=>{s.theme_index=Number(el.dataset.theme);applySettings();invalidate();};});

@@ -669,3 +669,8 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 .preview-controls {min-width:300px;}
 .preview-controls .btn {white-space:normal;}
 @media(max-width:650px){.layout{padding:16px;gap:24px;}.panel{padding:16px;}.panel-header{flex-wrap:wrap;gap:8px;}.topbar{padding:12px;}.top-actions .badge{display:none;}.brand-text h1{font-size:15px;}.templates-grid{gap:5px;}.template-thumb::before{font-size:10px;}.slider-grid{grid-template-columns:1fr;}.phone-mockup{width:300px;}.preview-controls{width:300px;}}
+.vertical-input-row {display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;}
+.vertical-input-row label {margin:0;}
+#verticalNumber {width:100px;padding:7px 10px;background:#0d1422;border:1px solid #455165;border-radius:8px;color:#f7e6c7;font:inherit;font-size:13px;}
+#verticalNumber:focus {outline:2px solid var(--accent-gold);outline-offset:1px;}
+#quoteLineHelp {margin-top:8px;line-height:1.6;}

@@ -13,7 +13,7 @@ def normalize_settings(values=None):
         if old in raw and new not in raw:
             raw[new] = raw[old]
     result = {**DEFAULTS, **{k: v for k, v in raw.items() if k in DEFAULTS}}
-    for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 4), ('vertical_offset', -350, 350)]:
+    for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 4), ('vertical_offset', -1600, 1600)]:
         result[key] = max(low, min(high, int(result[key])))
     result['duration'] = max(1., min(600., float(result['duration'])))
     for key in ['shade', 'music_volume']:

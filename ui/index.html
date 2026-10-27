@@ -45,9 +45,10 @@
         <div class="field">
           <label for="quoteInput">
             Câu nói chính:
-            <span class="hint">Tự động ngắt dòng theo màn hình dọc</span>
+            <span class="hint">Nhấn Enter: mỗi dòng một cảnh</span>
           </label>
-          <textarea id="quoteInput" spellcheck="false" rows="3"></textarea>
+          <textarea id="quoteInput" spellcheck="false" rows="4" aria-describedby="quoteLineHelp"></textarea>
+          <p class="panel-sub" id="quoteLineHelp">Xuống dòng để tự chia các phần câu nói. Dòng trống được bỏ qua; chữ trong mỗi cảnh vẫn tự ngắt cho vừa khung.</p>
         </div>
 
         <div class="field">
@@ -105,7 +106,9 @@
         <div class="slider-grid">
           <div class="slider-field">
             <label for="verticalSlider">Dịch vị trí Y: <b id="verticalVal">0 px</b></label>
-            <input type="range" id="verticalSlider" min="-350" max="350" value="0" step="10">
+            <input type="range" id="verticalSlider" min="-1600" max="1600" value="0" step="1">
+            <div class="vertical-input-row"><label for="verticalNumber">Nhập độ dịch (px):</label><input type="number" id="verticalNumber" min="-1600" max="1600" value="0" step="1"></div>
+            <p class="panel-sub">−1600 đến +1600 px. Chữ và nguồn luôn được giữ trong vùng an toàn.</p>
           </div>
           <div class="slider-field">
             <label for="shadeSlider">Độ đậm nền chữ (Shade): <b id="shadeVal">70%</b></label>
@@ -140,7 +143,7 @@
 
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <label class="switch-label" style="margin:0;">
-            <input type="checkbox" id="autoPaginateCheck" checked> Tự chia câu dài thành nhiều cảnh
+            <input type="checkbox" id="autoPaginateCheck" checked> Tự chia cảnh khi chưa xuống dòng
           </label>
 
           <div style="display:flex; align-items:center; gap:8px;">

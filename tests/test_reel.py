@@ -37,6 +37,28 @@ class ContentTests(unittest.TestCase):
         self.assertEqual(split_into_slides(DEFAULT_QUOTES[0],False),[DEFAULT_QUOTES[0]])
         with self.assertRaises(ValueError): calculate_slide_timings([''])
 
+    def test_enter_creates_exact_scenes_even_when_auto_is_disabled(self):
+        expected=['Hạnh phúc đến từ yêu thương.', 'Hãy sống tử tế mỗi ngày.', 'Bình an trong từng việc nhỏ.']
+        text='  '+expected[0]+'\r\n\r\n  '+expected[1]+'\r\n  '+expected[2]+'  \n'
+        for auto in [True,False]:
+            self.assertEqual(split_into_slides(text,auto),expected)
+        long_line=' '.join(['Yêu thương và biết ơn.']*8)
+        self.assertEqual(split_into_slides(long_line+'\nBình an.'),[long_line,'Bình an.'])
+        self.assertEqual(split_into_slides('\n\nHạnh phúc.\n'),['Hạnh phúc.'])
+
+    def test_wide_y_settings_and_full_safe_travel(self):
+        for offset in [-1600,-1000,650,1200,1600]:
+            self.assertEqual(normalize_settings({'vertical_offset':offset})['vertical_offset'],offset)
+            self.assertEqual(normalize_settings({'verticalOffset':offset})['vertical_offset'],offset)
+        self.assertEqual(normalize_settings({'vertical_offset':9999})['vertical_offset'],1600)
+        self.assertEqual(normalize_settings({'vertical_offset':-9999})['vertical_offset'],-1600)
+        for pos in ['top','center','bottom']:
+            low=layout_overlay('Bình an mỗi ngày.','Sách Hay',pos_mode=pos,vertical_offset=-1600,workspace_dir=str(ROOT))
+            high=layout_overlay('Bình an mỗi ngày.','Sách Hay',pos_mode=pos,vertical_offset=1600,workspace_dir=str(ROOT))
+            self.assertEqual(low['top'],180)
+            self.assertEqual(high['bottom'],SAFE_BOTTOM)
+            self.assertGreater(high['top'],low['top'])
+
     def test_settings_migration(self):
         s=normalize_settings(dict(creditSize=32,quoteSize=80,themeIndex=4,verticalOffset=210,shade=70,musicVolume=85,autoPaginate=False))
         self.assertEqual((s['credit_size'],s['theme_index'],s['vertical_offset']),(32,4,210))
@@ -47,7 +69,7 @@ class ContentTests(unittest.TestCase):
     def test_template_footer_and_text_bounds(self):
         for theme in range(5):
             for pos in ['top','center','bottom']:
-                for offset in [-350,350]:
+                for offset in [-1600,1600]:
                     with self.subTest(theme=theme,pos=pos,offset=offset):
                         kw=dict(theme_index=theme,pos_mode=pos,vertical_offset=offset,quote_size=108,credit_size=32,workspace_dir=str(ROOT))
                         quote='Hạnh phúc bắt đầu từ những điều giản dị, khi ta biết yêu thương và sống chậm lại.'
@@ -82,5 +104,11 @@ class ContentTests(unittest.TestCase):
             with patch('core.planner.probe', return_value=dict(width=1080,height=1920,duration=2.,is_vertical=True)):
                 p=build_plan(dict(quote=DEFAULT_QUOTES[0]),root,Detector())
                 self.assertTrue(all(s['video_name']=='one.mp4' for s in p['scenes']))
+                manual='Hạnh phúc không phải đến từ việc yêu thương bản thân,\n mà là kết quả của việc ta đã yêu thương con người rất nhiều\n và đã nỗ lực mang hạnh phúc đến cho con người.'
+                p=build_plan(dict(quote=manual,auto_paginate=False,vertical_offset=1200),root,Detector())
+                self.assertEqual([s['text'] for s in p['scenes']],[s.strip() for s in manual.splitlines()])
+                self.assertEqual(p['quote'],'\n'.join(s.strip() for s in manual.splitlines()))
+                self.assertEqual(p['segmentation_mode'],'manual_lines')
+                self.assertEqual(p['settings']['vertical_offset'],1200)
 
 if __name__=='__main__': unittest.main()

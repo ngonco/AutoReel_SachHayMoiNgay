@@ -43,3 +43,16 @@
 ## Backup
 
 Nguồn và tài liệu được quản lý trong repo `ngonco/AutoReel_SachHayMoiNgay`, nhánh `main`. Không đưa video nguồn/xuất, cache, log, font Microsoft, file EXE hoặc settings cá nhân lên Git. Xác nhận commit remote trùng local là bước cuối của quy trình backup, theo `system_map.md` và `AGENTS.md`.
+
+
+## Bổ sung v3 — Enter chia cảnh và Y rộng (2026-10-27)
+
+- `python -X utf8 -m unittest discover -s tests -v`: **7/7 test đạt**. Thêm trường hợp Enter/CRLF/dòng trống, mỗi dòng dài giữ nguyên một cảnh, ưu tiên xuống dòng cả khi tắt tự chia; planner giữ ranh giới dòng và báo `manual_lines`.
+- Y mở rộng −1600..+1600 px; kiểm tra settings snake_case/camelCase, clamp giá trị vượt giới hạn, đi hết vùng an toàn với cả ba chế độ vị trí và footer năm template ở hai cực Y.
+- Build thành công `AutoReelSachHay_v3.exe`, giữ nguyên v2; mở được qua BAT. Kích thước **204.323.742 byte**, SHA256 `CC8EC241382101383931D2C3C1698C01560D36FBB91922DF6E9DF404FA794657`.
+- `verify_manual_lines.py --base http://127.0.0.1:8769`: đạt trên chính EXE v3; kiểm tra đúng ba dòng → ba cảnh khi auto bật/tắt, API Y ở −1600, −900, +650, +1200, +1600.
+- Đã xuất và giải mã toàn bộ hai mẫu ba dòng, cùng **14,4 giây**: `output_videos/verification/v3_manual_lines_preview.mp4` (540×960), `v3_manual_lines_fullhd.mp4` (1080×1920).
+- Đã xem ảnh cảnh 2 và bảng so sánh Y cục bộ; chữ, nguồn và dấu tiếng Việt không bị cắt.
+- Kiểm tra giao diện EXE: nhập ba dòng tạo badge “3 cảnh theo dòng”; nhập bằng bàn phím −900 đồng bộ ô số, thanh trượt và nhãn, vượt được giới hạn ±350 trước đây.
+- Phiên v2 và dữ liệu người dùng được giữ nguyên. Cài đặt dùng trong kiểm tra giao diện được khôi phục sau khi kiểm tra.
+- Play trên giao diện EXE v3 với ba dòng và Y −900 đã phát hết tới cảnh 3/3, thời lượng 14,4 giây; sau đó khôi phục Y ban đầu. Ảnh bàn giao: `test_renders/verification/v3_studio.png`.

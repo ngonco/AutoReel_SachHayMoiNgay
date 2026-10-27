@@ -4,7 +4,12 @@ import unicodedata
 
 
 def split_into_slides(text, auto_paginate=True, max_words_per_slide=18):
-    words = unicodedata.normalize('NFC', text or '').split()
+    normalized = unicodedata.normalize('NFC', text or '')
+    manual_lines = [' '.join(line.split()) for line in normalized.splitlines() if line.strip()]
+    # Explicit Enter boundaries take priority over automatic pagination, including when disabled.
+    if len(manual_lines) > 1:
+        return manual_lines
+    words = normalized.split()
     if not auto_paginate or len(words) <= max_words_per_slide:
         return [' '.join(words)]
     # Avoid breaking common Vietnamese phrases or leaving function words at a scene end.

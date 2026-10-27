@@ -7,7 +7,7 @@ from core.media import probe, resource_path
 from core.paginator import split_into_slides, calculate_slide_timings
 from core.settings import normalize_settings
 
-PLAN_VERSION = 'multi-scene-v2-template-2'
+PLAN_VERSION = 'multi-scene-v3-manual-lines-template-2'
 
 
 def fingerprint(path):
@@ -18,7 +18,7 @@ def fingerprint(path):
 
 def build_plan(payload, workspace_dir, detector):
     settings = normalize_settings(payload)
-    text = unicodedata.normalize('NFC', str(payload.get('quote', ''))).strip()
+    text = '\n'.join(' '.join(line.split()) for line in unicodedata.normalize('NFC', str(payload.get('quote', ''))).splitlines() if line.strip())
     if not text:
         raise ValueError('Hãy nhập nội dung câu nói.')
     if len(text) > 20000:
@@ -55,7 +55,8 @@ def build_plan(payload, workspace_dir, detector):
     music = Path(workspace_dir) / 'assets' / 'thien_chuong.wav'
     if not music.is_file():
         music = resource_path('assets', 'thien_chuong.wav')
-    plan = dict(version=PLAN_VERSION, settings=settings, quote=' '.join(text.split()), scenes=scenes,
+    mode = 'manual_lines' if '\n' in text else ('auto' if settings['auto_paginate'] else 'single')
+    plan = dict(version=PLAN_VERSION, settings=settings, quote=text, segmentation_mode=mode, scenes=scenes,
                 duration=timings[-1]['end'], transition=.4,
                 music=fingerprint(music) if music.is_file() else None)
     key = hashlib.sha256(json.dumps(plan, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:24]
