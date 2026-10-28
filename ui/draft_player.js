@@ -1,21 +1,73 @@
 'use strict';
 // This player consumes server scene/timing/layout data; it never allocates footage or lays out text.
 class DraftPlayer {
-  constructor({canvas,request,loadOverlay,onStatus,onTime,onState}) {
-    Object.assign(this,{canvas,request,loadOverlay,onStatus,onTime,onState});
+  constructor({canvas,request,loadOverlay,onStatus,onTime,onState,onAudioBlocked,onAudioState}) {
+    Object.assign(this,{canvas,request,loadOverlay,onStatus,onTime,onState,onAudioBlocked,onAudioState});
     this.ctx=canvas.getContext('2d');this.generation=0;this.running=false;this.time=0;
     this.videos=[0,1].map(index=>{const video=document.createElement('video');video.muted=true;video.playsInline=true;video.preload='auto';
       video.style.display='none';video.setAttribute('aria-hidden','true');video.dataset.draftSlot=index;canvas.parentElement?.append(video);return video;});
     this.slots=[{},{}];this.images=new Map();this.media=[];this.audio=new Audio();this.audio.loop=true;
     this.audio.style.display='none';this.audio.dataset.draftMusic='true';canvas.parentElement?.append(this.audio);
-    this.audioBlocked=false;this.last=0;this.waiting=false;
+    this.audioBlocked=false;this.audioEpoch=0;this.audioPlayRequest=null;this.last=0;this.waiting=false;
   }
   unlockAudio() {
-    this.audio.volume=0;
-    this.audio.play().then(()=>{if(!this.running)this.audio.pause();}).catch(()=>{});
+    this.audio.muted=false;this.audioBlocked=false;this.onAudioBlocked?.(false);
+    // Resume the output graph in the actual click, before any plan/network awaits.
+    const Context=typeof AudioContext!=='undefined'?AudioContext:null;
+    if(Context&&!this.audioContext) {
+      this.audioContext=new Context();this.musicSource=this.audioContext.createMediaElementSource(this.audio);
+      this.musicGain=this.audioContext.createGain();this.musicGain.gain.value=0;
+      this.analyser=this.audioContext.createAnalyser();this.analyser.fftSize=512;this.audioSamples=new Float32Array(512);
+      this.musicSource.connect(this.musicGain);this.musicGain.connect(this.analyser);this.analyser.connect(this.audioContext.destination);
+    }
+    if(this.audioContext?.state!=='running'&&this.audioContext) {
+      this.audioContext.resume().then(()=>{
+        if(this.audioContext.state==='running'){this.audioBlocked=false;this.onAudioBlocked?.(false);if(this.running)this.requestAudio();}
+      }).catch(()=>this.blockAudio());
+    }
+    this.audioTime();
+  }
+  blockAudio() {
+    this.audioBlocked=true;this.onAudioBlocked?.(true);this.reportAudio();
+  }
+  pauseAudio() {
+    this.audioEpoch++;this.audioPlayRequest=null;this.audio.pause();
+  }
+  requestAudio(force=false) {
+    if(!this.running||!this.plan?.music||this.plan.settings.music_volume<=0||this.audioBlocked&&!force)return;
+    if(this.waiting||this.audio.readyState<2)return;
+    if(this.audioContext&&this.audioContext.state!=='running'){this.blockAudio();return;}
+    if(this.audioPlayRequest||!this.audio.paused)return;
+    this.audio.muted=false;this.audioTime();
+    const request={epoch:this.audioEpoch,generation:this.generation};this.audioPlayRequest=request;
+    Promise.resolve(this.audio.play()).then(()=>{
+      if(request.epoch===this.audioEpoch&&request.generation===this.generation){this.audioBlocked=false;this.onAudioBlocked?.(false);}
+    }).catch(error=>{
+      if(request.epoch!==this.audioEpoch||request.generation!==this.generation||!this.running)return;
+      // Buffering/pause/load can abort play. It is retryable, not an autoplay denial.
+      if(error.name==='AbortError')return;
+      if(error.name==='NotAllowedError')this.blockAudio();
+      else {this.onStatus('Không phát được nhạc nháp. Hãy chọn bài khác.',true);this.pause();}
+    }).finally(()=>{if(this.audioPlayRequest===request)this.audioPlayRequest=null;});
+  }
+  enableAudio() {
+    this.unlockAudio();
+    if(!this.running)this.play(this.mode==='scene'?this.sceneAt(this.time).index:null);
+    else this.requestAudio(true);
+  }
+  reportAudio() {
+    const volume=this.plan?.music?this.plan.settings.music_volume:0;
+    let level=0;
+    if(this.analyser&&this.audioContext.state==='running') {
+      this.analyser.getFloatTimeDomainData(this.audioSamples);
+      level=Math.sqrt(this.audioSamples.reduce((sum,value)=>sum+value*value,0)/this.audioSamples.length);
+    }
+    const state=!this.plan?.music?'none':volume<=0?'muted':this.audioBlocked?'blocked':this.audio.paused?'paused':'playing';
+    if(this.canvas.dataset){this.canvas.dataset.audioState=state;this.canvas.dataset.audioRms=String(level);this.canvas.dataset.audioVolume=String(volume);}
+    this.onAudioState?.({state,volume,level});
   }
   pause() {
-    this.running=false;cancelAnimationFrame(this.raf);this.videos.forEach(v=>v.pause());this.audio.pause();this.onState?.(false);
+    this.running=false;cancelAnimationFrame(this.raf);this.videos.forEach(v=>v.pause());this.pauseAudio();this.onState?.(false);this.reportAudio();
   }
   clear(preserveMedia=false) {
     this.pause();this.generation++;clearTimeout(this.pollTimer);
@@ -27,7 +79,7 @@ class DraftPlayer {
     this.plan=plan;this.hasFrame=false;this.time=plan.scenes[index].text_start+.21;this.end=plan.duration;
     const musicIdentity=plan.music?`${plan.music.path}:${plan.music.size}:${plan.music.mtime_ns}`:'';
     if(this.musicIdentity!==musicIdentity){
-      this.audio.pause();this.musicIdentity=musicIdentity;
+      this.pauseAudio();this.musicIdentity=musicIdentity;
       if(plan.music_url){this.audio.src=plan.music_url;this.audio.load();}
       else this.audio.removeAttribute('src');
     }
@@ -39,6 +91,7 @@ class DraftPlayer {
     plan.scenes.forEach((scene,i)=>{
       this.loadOverlay(plan,i).then(image=>{if(generation!==this.generation)return;this.images.set(scene.overlay_key,image);if(!this.running)this.draw();}).catch(error=>{if(generation===this.generation)this.onStatus(error.message,true);});
     });
+    this.reportAudio();
     try {
       const result=await this.request('/api/draft_prepare',{plan_id:plan.plan_id,selected_scene:index});
       if(generation!==this.generation)return;
@@ -113,8 +166,8 @@ class DraftPlayer {
     this.pause();
     if(index!==null){this.time=this.plan.scenes[index].text_start;this.end=this.plan.scenes[index].text_end;this.mode='scene';}
     else {this.end=this.plan.duration;this.mode='reel';if(this.time>=this.end-1/30)this.time=0;}
-    this.running=true;this.audioBlocked=false;this.last=performance.now();this.onState?.(true);
-    this.audioTime();if(this.plan.music)this.audio.play().catch(()=>{this.audioBlocked=true;});
+    this.running=true;this.last=performance.now();this.onState?.(true);
+    this.audioTime();
     this.onStatus(this.mode==='scene'?`Đang xem cảnh ${index+1}.`:'Đang xem nháp toàn Reel.');
     this.tick(this.last);
   }
@@ -125,7 +178,10 @@ class DraftPlayer {
     }
     if(this.plan) {
       const fade=Math.min(1,this.time/.6,Math.max(0,this.plan.duration-this.time)/1.2);
-      this.audio.volume=(this.plan.music?this.plan.settings.music_volume:0)*Math.max(0,fade);
+      const volume=(this.plan.music?this.plan.settings.music_volume:0)*Math.max(0,fade);
+      if(this.musicGain){this.audio.volume=1;this.musicGain.gain.value=volume;}
+      else this.audio.volume=volume;
+      this.audio.muted=false;
     }
   }
   draw(time=this.time) {
@@ -168,16 +224,16 @@ class DraftPlayer {
     if(ready) {
       this.time=target;this.audioTime();
       if(this.waiting){this.waiting=false;this.onStatus('Đang xem nháp tức thì.');}
-      if(this.plan.music&&!this.audioBlocked&&this.audio.paused)this.audio.play().catch(()=>{this.audioBlocked=true;});
+      this.requestAudio();
       if(this.time>=this.end-1/500){this.time=this.end;this.pause();this.onTime?.(this.time,this.sceneAt(this.time)?.index||0);this.onStatus('Đã phát hết. Có thể phát lại hoặc chọn footage khác.');return;}
       const index=this.sceneAt(this.time).index;
       // During overlap both slots are in use; preload the following scene afterwards.
       if(this.layersAt(this.time).length===1)this.preload(index);
     } else {
-      this.audio.pause();this.videos.forEach(video=>video.pause());
+      this.pauseAudio();this.videos.forEach(video=>video.pause());
       if(!this.waiting){this.waiting=true;this.onStatus('Đang tải clip nháp; giữ đồng bộ hình, chữ và nhạc.');}
     }
-    this.raf=requestAnimationFrame(time=>this.tick(time));
+    this.reportAudio();this.raf=requestAnimationFrame(time=>this.tick(time));
   }
 }
 if(typeof module!=='undefined')module.exports={DraftPlayer};

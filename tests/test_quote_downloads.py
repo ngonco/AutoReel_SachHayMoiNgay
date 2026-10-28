@@ -59,6 +59,28 @@ class QuoteDownloadTests(unittest.TestCase):
         self.history.path.write_text('{bad',encoding='utf-8')
         with self.assertRaises(ValueError):self.history.record('A','path','id')
         self.assertEqual(self.history.path.read_text(),'{bad')
+    def test_manual_mark_unmark_restart_and_real_download_counts(self):
+        self.history.mark('Bình an.')
+        once=self.history.snapshot();self.history.mark('  Bình\nan.  ')
+        self.assertEqual(self.history.snapshot(),once,'Marking an already marked quote is idempotent')
+        record=once['records'][0];self.assertEqual(record['count'],0);self.assertIsNone(record['last_downloaded_at'])
+        self.assertEqual(record['status_source'],'manual')
+        self.assertEqual(self.history.startup(self.catalog,normalize_settings())['index'],1)
+        self.history.mark('Bình an.',False)
+        restarted=QuoteDownloadHistory(self.root)
+        self.assertFalse(restarted.annotate(self.catalog)['quotes'][0]['downloaded'])
+        self.assertEqual(restarted.startup(self.catalog,normalize_settings())['index'],0)
+        restarted.record('Bình an.','actual.mp4','actual')
+        self.assertEqual(restarted.snapshot()['records'][0]['count'],1)
+        restarted.mark('Bình an.',False)
+        self.assertEqual(restarted.snapshot()['records'][0]['count'],1,'Unmarking preserves the actual download audit')
+        self.assertEqual(len(restarted.snapshot()['records']),1)
+        self.assertFalse((self.root/'footage_usage.json').exists(),'Manual marks never consume footage turns')
+    def test_manual_validation_preserves_history(self):
+        for quote in (None,'','  ','x'*20001):
+            with self.assertRaises(ValueError):self.history.mark(quote)
+        with self.assertRaises(ValueError):self.history.mark('A','true')
+        self.assertFalse(self.history.path.exists())
 
 
 if __name__=='__main__':unittest.main()

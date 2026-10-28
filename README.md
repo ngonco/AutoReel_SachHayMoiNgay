@@ -10,7 +10,7 @@
 
 ## Chạy
 
-Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v10.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
+Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v11.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
 
 Chạy từ mã nguồn trên Windows, Python 3.11:
 
@@ -42,7 +42,7 @@ python -X utf8 build_onefile.py
 
 `verify_samples.py` cần kho clip thật và xuất ba mẫu (một, hai, ba cảnh) ở cả bản nhẹ và Full HD. Kết quả ở `output_videos/verification`; ảnh kiểm tra và báo cáo ở `test_renders/verification`.
 
-Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v10.previous.exe`.
+Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v11.previous.exe`.
 
 Bắt buộc sau mỗi đợt sửa code, kể cả giao diện: đóng gói lại EXE từ code cuối cùng, mở qua launcher và kiểm tra chức năng vừa sửa trên bản đóng gói trước khi bàn giao. Không giao EXE cũ sau khi chỉ kiểm tra mã nguồn. Chỉ sửa tài liệu thì không cần build lại.
 
@@ -81,7 +81,7 @@ V8 tránh toàn bộ footage của câu trước khi đổi câu (kể cả ch�
 
 Với nội dung một dòng, tự chia theo dấu kết câu và ưu tiên dấu phẩy/từ nối khi hai vế đủ dài, từ nối nằm ở cảnh sau. Nhấn Enter vẫn chủ động đặt mỗi dòng thành một cảnh. Chữ hiển thị tự cân dòng, tránh đuôi một từ hoặc hai từ ngắn và giữ các cụm như “hạnh phúc”, “biết ơn”, “yêu thương” khi khung cho phép. Tắt tự chia để giữ nguyên một cảnh cho nội dung một dòng.
 
-Bài kiểm tra v8 được giữ cho phiên bản lịch sử; bản đóng gói hiện tại dùng `python -X utf8 verify_v10.py --hold --fullhd`. Script tạo profile dưới `.cache`, dùng clip màu riêng và không sửa bản nháp/lịch sử/video thật.
+Bài kiểm tra v8 được giữ cho phiên bản lịch sử; bản đóng gói hiện tại dùng `python -X utf8 verify_v11.py --hold --fullhd`. Script tạo profile dưới `.cache`, dùng clip màu riêng và không sửa bản nháp/lịch sử/video thật.
 
 
 ### Tự cập nhật câu nói từ Google Sheet — v9
@@ -92,7 +92,7 @@ Danh sách cập nhật ở nền, giữ nguyên câu đang soạn và các Reel
 
 Nút Xuất nhiều Reel dùng danh sách tại lúc bắt đầu, nên bài mới xuất hiện giữa chừng sẽ dành cho lần xuất tiếp theo. Nếu Sheet rỗng, vẫn có thể nhập và tải một Reel riêng. Khi tiến trình ứng dụng dừng, việc kiểm tra cũng dừng; lần mở tiếp theo kiểm tra ngay.
 
-Kiểm tra bản đóng gói hiện tại: `python -X utf8 verify_v10.py --hold --fullhd`. Với bài thử cục bộ không muốn đọc Sheet, thêm `--no-sheet-sync` khi chạy ứng dụng. Không thay đổi thiết lập chia sẻ của Sheet qua app.
+Kiểm tra bản đóng gói hiện tại: `python -X utf8 verify_v11.py --hold --fullhd`. Với bài thử cục bộ không muốn đọc Sheet, thêm `--no-sheet-sync` khi chạy ứng dụng. Không thay đổi thiết lập chia sẻ của Sheet qua app.
 
 
 ### Xem trước nhanh và giãn dòng đều — v9
@@ -110,7 +110,7 @@ Nháp dùng hai video nền nhẹ 360×640 và PNG chữ do chính renderer Full
 
 ### Ghi nhớ câu đã tải — v10
 
-Chỉ **Tải video lưu file thành công** mới đánh dấu **ĐÃ TẢI VIDEO**. Hủy hộp thoại, lỗi dựng/lưu, chỉ xem nháp hoặc Xuất nhiều Reel đều không đánh dấu. Có ngày tải gần nhất, số lần tải, bộ đếm đã/chưa tải và nút **Câu chưa tải tiếp theo**. Lịch sử theo nội dung sau NFC và gộp khoảng trắng: các dòng Sheet trùng nội dung cùng trạng thái; sửa nội dung tạo câu chưa tải mới. Không suy đoán video tải trước v10 vì các bản cũ chưa lưu liên kết câu–file.
+**Tải video lưu file thành công** tự đánh dấu **ĐÃ TẢI VIDEO**. V11 bổ sung **Đánh dấu đã tải** và **Bỏ đánh dấu đã tải** ngay cạnh trạng thái, dùng cho câu bạn đã tải trước đây hoặc cần sửa trạng thái. Hủy hộp thoại, lỗi dựng/lưu, chỉ xem nháp hoặc Xuất nhiều Reel không tự đánh dấu. Có ngày tải gần nhất, số lần tải, bộ đếm đã/chưa tải và nút **Câu chưa tải tiếp theo**. Lịch sử theo nội dung sau NFC và gộp khoảng trắng: các dòng Sheet trùng nội dung cùng trạng thái; sửa nội dung tạo câu chưa tải mới. Không suy đoán video tải trước v10 vì các bản cũ chưa lưu liên kết câu–file; có thể đánh dấu thủ công các câu đó trong v11.
 
 Lúc mở app, chọn câu chưa tải đầu tiên theo thứ tự Sheet. Nếu đã tải hết, hiển thị rõ và chọn câu đầu; Sheet rỗng giữ bản nháp. Bản soạn/cài đặt trước khi chuyển câu được giữ trong `draft_recovery.json` và mở lại bằng nút trong phần câu nói. `quote_download_history.json` là dữ liệu cá nhân bền vững, độc lập `footage_usage.json`; sao lưu riêng cả hai khi chuyển máy. Sheet cập nhật trong phiên không thay bản đang soạn.
 
@@ -118,4 +118,13 @@ Lúc mở app, chọn câu chưa tải đầu tiên theo thứ tự Sheet. Nếu
 
 Kho nguồn: [music background của vinhn8n/voicedaoly](https://huggingface.co/datasets/vinhn8n/voicedaoly/tree/main/music%20background). Các bài được tải thành file cục bộ vào `CLIP TƯỢNG PHẬT LQ/NHẠC NỀN` ở kho mặc định, hoặc `NHẠC NỀN` bên trong folder footage tự chọn. Tải/bổ sung ở nền, kiểm tra SHA256 và giữ nguyên file cũ nếu trùng tên nhưng khác nội dung. Không cần tài khoản hoặc token Hugging Face; xem nháp/xuất dùng file offline, không gọi mạng để phát.
 
-Mặc định mỗi Reel chọn ngẫu nhiên một bài; đổi câu/nhấn **Đổi bài ngẫu nhiên** tránh bài ngay trước khi còn lựa chọn. Chỉnh chữ hoặc footage giữ nguyên bài. Có tìm tên, chọn bài cố định, nghe thử, mở kho, dùng chuông thiền hoặc tắt nhạc. Batch random từng Reel, tránh lặp bài liền trước. Nhạc ngắn được lặp cho đủ Reel và fade đầu/cuối, âm thanh footage luôn tắt. Kho chưa có bài thì báo rõ đang dùng chuông thiền; bài chọn cố định bị mất sẽ yêu cầu chọn lại.
+Mặc định mỗi Reel chọn ngẫu nhiên một bài; đổi câu/nhấn **Đổi bài ngẫu nhiên** tránh bài ngay trước khi còn lựa chọn. Chỉnh chữ hoặc footage giữ nguyên bài. Có tìm tên, chọn bài cố định, nghe thử, mở kho, hoặc tắt nhạc. V11 đã bỏ lựa chọn và nút nghe chuông thiền. Batch random từng Reel, tránh lặp bài liền trước. Nhạc ngắn được lặp cho đủ Reel và fade đầu/cuối, âm thanh footage luôn tắt. Kho chưa có bài thì báo rõ chưa có nhạc, không phát chuông thay thế; bài chọn cố định bị mất sẽ yêu cầu chọn lại.
+
+
+### Đánh dấu thủ công và sửa tiếng nháp — v11
+
+Bấm **Đánh dấu đã tải** cho câu đang soạn: trạng thái được lưu ngay và có thời điểm đánh dấu. Có thể **Bỏ đánh dấu đã tải** để sửa lại; thao tác không dựng video, không tăng lượt footage hoặc số lần tải file thực tế. Dấu vẫn còn sau restart, dùng chung cho các bản trùng nội dung và ảnh hưởng lựa chọn câu chưa tải lúc khởi động. Đánh dấu không tự chuyển câu hoặc làm mất bản nháp đang sửa.
+
+Nhạc nháp tự tiếp tục sau lúc tải clip, tạm dừng, tua hoặc đổi footage; không còn coi lần phát bị ngắt khi chờ dữ liệu là lỗi khóa âm thanh. Đồ thị âm thanh được kích hoạt từ thao tác bấm, dùng đúng âm lượng và fade của Reel. Khung preview có trạng thái và thanh tín hiệu nhạc; nếu trình duyệt thực sự chặn tiếng thì hiện **Bật tiếng nháp** để bật lại. Âm lượng 0 và Tắt nhạc vẫn được tôn trọng.
+
+Chuông thiền đã bỏ khỏi giao diện, endpoint phát, fallback và EXE mới. Cài đặt cũ ở chế độ chuông được chuyển sang nhạc ngẫu nhiên. File nguồn chuông cũ và các EXE cũ được giữ trên đĩa để không phá dữ liệu/phiên cũ, không được ứng dụng v11 dùng để phát hoặc xuất. Kho 175 bài nhạc offline vẫn giữ nguyên.

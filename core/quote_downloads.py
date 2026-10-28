@@ -32,8 +32,20 @@ class QuoteDownloadHistory:
             data=self._read();key=quote_key(quote);previous=data['quotes'].get(key,{})
             if previous.get('last_job_id')==job_id:return
             data['quotes'][key]=dict(quote=quote,count=previous.get('count',0)+1,
-                                    first_downloaded_at=previous.get('first_downloaded_at',time.time()),
-                                    last_downloaded_at=time.time(),last_path=str(saved_path),last_job_id=job_id)
+                                    first_downloaded_at=previous.get('first_downloaded_at') or time.time(),
+                                    last_downloaded_at=time.time(),last_path=str(saved_path),last_job_id=job_id,
+                                    is_downloaded=True,status_source='download',status_at=time.time())
+            data['revision']+=1;atomic_json(self.path,data)
+
+    def mark(self, quote, downloaded=True):
+        if not isinstance(quote,str) or not quote.strip() or len(quote)>20000:
+            raise ValueError('Hãy chọn hoặc nhập câu nói hợp lệ trước khi đánh dấu.')
+        if not isinstance(downloaded,bool):raise ValueError('Trạng thái đánh dấu không hợp lệ.')
+        with file_mutex(self.lock):
+            data=self._read();key=quote_key(quote);previous=data['quotes'].get(key)
+            if bool(previous and previous.get('is_downloaded',True))==downloaded:return
+            data['quotes'][key]={**(previous or dict(quote=quote,count=0,first_downloaded_at=None,last_downloaded_at=None)),
+                                'is_downloaded':downloaded,'status_source':'manual','status_at':time.time()}
             data['revision']+=1;atomic_json(self.path,data)
 
     def snapshot(self):
@@ -47,7 +59,8 @@ class QuoteDownloadHistory:
         quotes=[]
         for quote in catalog['quotes']:
             record=records.get(quote_key(quote['quote']))
-            quotes.append({**quote,'downloaded':bool(record),'last_downloaded_at':record['last_downloaded_at'] if record else None})
+            quotes.append({**quote,'downloaded':bool(record and record.get('is_downloaded',True)),
+                           'last_downloaded_at':record.get('last_downloaded_at') if record else None})
         return {**catalog,'quotes':quotes,'download_history':history,
                 'sync':{**catalog['sync'],'download_revision':history['revision']}}
 

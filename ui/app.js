@@ -8,7 +8,7 @@ const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null,
   lastRenderedUrl: null, lastExport: null, previewUrl: null, busyPreview: false, ready: false,
   previousFootageIds: [], lastAcceptedPlan: null, contextQuote: '', inventoryReady: true,
   busyExport: false, busyBatch: false, busyLibrary: false,
-  quoteCatalogRevision:null, busyQuoteRefresh:false, batchTotal:0, downloadRevision:0,downloadRecords:[],
+  quoteCatalogRevision:null, busyQuoteRefresh:false, batchTotal:0, downloadRevision:0,downloadRecords:[],busyMarkDownloaded:false,
   previewRequest:null, preparedPreviewPlan:null, pendingScenePlayback:null,
   musicTracks:[],previousMusicPath:'',
   settings: {credit_size:20, quote_size:68, theme_index:0, pos_mode:'auto', vertical_offset:0,
@@ -257,13 +257,28 @@ function updateQuoteCounter() {
 function downloadIdentity(text) {return String(text||'').normalize('NFC').trim().split(/\s+/).join(' ');}
 function updateDownloadStatus() {
   const identity=downloadIdentity($('quoteInput').value);
-  const record=state.downloadRecords.find(item=>downloadIdentity(item.quote)===identity);
+  const record=state.downloadRecords.find(item=>downloadIdentity(item.quote)===identity&&item.is_downloaded!==false);
   const badge=$('quoteDownloadStatus');
   badge.textContent=record?'✓ ĐÃ TẢI VIDEO':'○ CHƯA TẢI VIDEO';badge.classList.toggle('downloaded',!!record);
-  $('quoteDownloadDetail').textContent=record?`Lần tải gần nhất: ${new Date(record.last_downloaded_at*1000).toLocaleString('vi-VN')} · ${record.count} lần`:'Chỉ đánh dấu sau khi nút Tải video lưu file thành công.';
+  $('quoteDownloadDetail').textContent=record?(record.last_downloaded_at?
+    `Lần tải gần nhất: ${new Date(record.last_downloaded_at*1000).toLocaleString('vi-VN')} · ${record.count} lần`:
+    `Đã đánh dấu thủ công: ${new Date(record.status_at*1000).toLocaleString('vi-VN')}`):'Tự ghi nhận khi Tải video thành công, hoặc bấm đánh dấu nếu bạn đã tải trước đây.';
+  $('btnMarkDownloaded').textContent=record?'↶ Bỏ đánh dấu đã tải':'✓ Đánh dấu đã tải';
+  $('btnMarkDownloaded').disabled=state.busyMarkDownloaded||!identity;
   const remaining=state.quotes.filter(q=>!q.downloaded).length;
   $('quoteDownloadSummary').textContent=`${state.quotes.length-remaining} đã tải · ${remaining} chưa tải`+(state.quotes.length&&!remaining?' · Tất cả câu trong danh sách đã tải.':'');
   $('btnNextUndownloaded').disabled=!remaining;
+}
+async function markQuoteDownloaded() {
+  if(state.busyMarkDownloaded)return;
+  const quote=$('quoteInput').value,identity=downloadIdentity(quote);
+  if(!identity)return;
+  const marked=state.downloadRecords.some(item=>downloadIdentity(item.quote)===identity&&item.is_downloaded!==false);
+  state.busyMarkDownloaded=true;updateDownloadStatus();
+  let failure='';
+  try {applyQuoteCatalog(await api('/api/mark_quote_downloaded',{quote,downloaded:!marked}));}
+  catch(error){failure='Chưa lưu được đánh dấu: '+error.message;}
+  finally {state.busyMarkDownloaded=false;updateDownloadStatus();if(failure)$('quoteDownloadDetail').textContent=failure;}
 }
 function nextUndownloaded() {
   const next=state.quotes.findIndex((q,i)=>!q.downloaded&&i>state.currentQuoteIndex);
@@ -347,7 +362,7 @@ function populateVideos() {
 }
 function populateMusic() {
   const select=$('musicSelect');select.replaceChildren();
-  for(const [value,label] of [['random','🎲 Ngẫu nhiên theo Reel'],['bell','Chuông thiền'],['none','Tắt nhạc']]){
+  for(const [value,label] of [['random','🎲 Ngẫu nhiên theo Reel'],['none','Tắt nhạc']]){
     const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);
   }
   const query=($('musicSearch').value||'').toLocaleLowerCase('vi');
@@ -497,6 +512,12 @@ async function togglePlayback() {
 }
 function createDraftPlayer() {
   draft=new DraftPlayer({canvas,request:api,loadOverlay,onStatus:status,
+    onAudioBlocked:blocked=>{$('btnEnablePreviewAudio').hidden=!blocked;},
+    onAudioState:audio=>{
+      $('previewAudioStatus').textContent=audio.state==='none'?'Không có nhạc nền':audio.state==='muted'?'Âm lượng nhạc: 0%':
+        audio.state==='blocked'?'Bấm Bật tiếng nháp để nghe nhạc':`♫ Nhạc nền ${Math.round(audio.volume*100)}% · ${audio.state==='playing'?'Đang phát':'Tạm dừng / đang chờ'}`;
+      $('previewAudioLevel').value=Math.min(1,audio.level*8);
+    },
     onTime:(time,index)=>{
       $('playbackTime').textContent=`${timeLabel(time)} / ${timeLabel(state.plan?.duration||0)}`;
       $('draftSeek').value=time;
@@ -508,6 +529,7 @@ function createDraftPlayer() {
     draft.unlockAudio();try {await ensurePlan();showStatic();draft.play(state.selectedScene);}catch(error){status(error.message,true);}
   };
   $('draftSeek').oninput=()=>{showStatic();draft.seek(Number($('draftSeek').value));};
+  $('btnEnablePreviewAudio').onclick=()=>draft.enableAudio();
 }
 function renderProgress(job) {
   $('progressBox').classList.add('active');$('progressBarFill').style.width=job.progress+'%';
@@ -606,6 +628,7 @@ async function initApp() {
     $('btnNextQuote').onclick=()=>loadQuote(state.currentQuoteIndex+1);
     $('btnRandQuote').onclick=()=>loadQuote(Math.floor(Math.random()*state.quotes.length));
     $('btnNextUndownloaded').onclick=nextUndownloaded;
+    $('btnMarkDownloaded').onclick=markQuoteDownloaded;
     $('btnRestoreDraft').onclick=restorePreviousDraft;
     $('quoteInput').oninput=invalidate;$('creditInput').oninput=invalidate;
     $('btnSyncQuotes').onclick=syncQuotesNow;
@@ -639,8 +662,6 @@ async function initApp() {
       catch(error){status(error.message,true);}
     };
     $('safeZoneCheck').onchange=()=>{$('safeZoneOverlay').classList.toggle('visible',$('safeZoneCheck').checked);queueSave();};
-    const sample=new Audio('/assets/thien_chuong.wav');
-    $('btnTestAudio').onclick=()=>{sample.volume=state.settings.music_volume;sample.currentTime=0;sample.play().catch(error=>status(error.message,true));};
     $('btnTogglePlayVideo').onclick=togglePlayback;
     $('btnWatchRendered').onclick=()=>{draft?.pause();if(state.lastRenderedUrl&&state.plan)playUrl(state.lastRenderedUrl,'export',state.plan).catch(error=>status(error.message,true));};
     $('btnOpenFolder').onclick=()=>api('/api/open_folder',{}).catch(error=>status(error.message,true));

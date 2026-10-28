@@ -69,7 +69,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 name = 'index.html' if path == '/' else path[1:]
                 return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'draft_player.js':'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
             if path == '/api/health':
-                return self._send_json(dict(success=True, version='multi-scene-v10', pid=os.getpid()))
+                return self._send_json(dict(success=True, version='multi-scene-v11', pid=os.getpid()))
             if path == '/api/quotes':
                 return self._send_json(quote_sync.get_quotes())
             if path == '/api/quote_catalog':
@@ -134,9 +134,6 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                     if name != Path(name).name or '\\' in name:
                         raise ValueError('Tên file không hợp lệ.')
                     return self._serve_file(folder / name, mime)
-            if path == '/assets/thien_chuong.wav':
-                p = BASE_DIR / 'assets' / 'thien_chuong.wav'
-                return self._serve_file(p if p.is_file() else BUNDLE_DIR / 'assets' / p.name, 'audio/wav')
             self.send_error(404)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
@@ -158,6 +155,10 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 return self._send_json(quote_sync.request_refresh(), 202)
             if path == '/api/startup_quote':
                 return self._send_json(QuoteDownloadHistory(BASE_DIR).startup(quote_sync.snapshot(),read_settings()))
+            if path == '/api/mark_quote_downloaded':
+                history=QuoteDownloadHistory(BASE_DIR)
+                history.mark(body.get('quote'),body.get('downloaded',True))
+                return self._send_json({**history.annotate(quote_sync.snapshot()),'success':True})
             if path == '/api/download_music':
                 return self._send_json(music_library.download(read_settings()),202)
             if path == '/api/open_music_folder':

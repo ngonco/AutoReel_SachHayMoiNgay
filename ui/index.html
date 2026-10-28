@@ -59,7 +59,7 @@
           <div class="quote-download-panel" aria-live="polite">
             <strong id="quoteDownloadStatus">○ CHƯA TẢI VIDEO</strong>
             <span id="quoteDownloadDetail"></span>
-            <div class="download-status-actions"><span id="quoteDownloadSummary"></span><button class="btn small" id="btnNextUndownloaded">Câu chưa tải tiếp theo →</button><button class="btn small" id="btnRestoreDraft" hidden>Mở bản nháp trước</button></div>
+            <div class="download-status-actions"><span id="quoteDownloadSummary"></span><button class="btn small" id="btnMarkDownloaded">✓ Đánh dấu đã tải</button><button class="btn small" id="btnNextUndownloaded">Câu chưa tải tiếp theo →</button><button class="btn small" id="btnRestoreDraft" hidden>Mở bản nháp trước</button></div>
           </div>
           <textarea id="quoteInput" spellcheck="false" rows="4" aria-describedby="quoteLineHelp"></textarea>
           <p class="panel-sub" id="quoteLineHelp">Xuống dòng để tự chia các phần câu nói. Dòng trống được bỏ qua; chữ trong mỗi cảnh vẫn tự ngắt cho vừa khung.</p>
@@ -259,16 +259,13 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">06 / Xuất video Reel</div>
-          <div class="panel-sub">FFmpeg H.264 • Âm thanh chuông thiền</div>
+          <div class="panel-sub">FFmpeg H.264 • Nhạc nền offline</div>
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
           <div class="slider-field">
             <label for="musicVolSlider">Âm lượng nhạc nền: <b id="musicVolVal">85%</b></label>
             <input type="range" id="musicVolSlider" min="0" max="100" value="85" step="5">
-          </div>
-          <div style="display:flex; align-items:flex-end;">
-            <button class="btn small" id="btnTestAudio" style="width:100%;">🔔 Nghe thử chuông thiền</button>
           </div>
         </div>
 
@@ -304,6 +301,8 @@
       </div>
 
       <div class="preview-controls">
+        <button class="btn small primary" id="btnEnablePreviewAudio" hidden>🔊 Bật tiếng nháp</button>
+        <div class="preview-audio"><span id="previewAudioStatus" role="status">Nhạc nền</span><meter id="previewAudioLevel" min="0" max="1" value="0" aria-label="Tín hiệu nhạc nền"></meter></div>
         <div id="playbackStatus" role="status" aria-live="polite">Đang khởi tạo…</div><div id="playbackTime" class="panel-sub">0.0s</div>
         <div class="preview-meta">
           <div>Đang xem: <strong id="previewStyleName">Thiền Vàng</strong></div>

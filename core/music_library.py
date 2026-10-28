@@ -10,7 +10,7 @@ import time
 import urllib.parse
 import urllib.request
 import uuid
-from core.media import run_media, tool_path, resource_path
+from core.media import run_media, tool_path
 from core.persistence import file_mutex
 
 REPOSITORY='vinhn8n/voicedaoly'
@@ -61,10 +61,7 @@ def choose_music(workspace,settings,quote,previous=''):
     if chosen:
         path=Path(chosen['path']);stat=path.stat();info=audio_info(str(path),stat.st_size,stat.st_mtime_ns)
         return path,dict(name=chosen['name'],reason='',**info)
-    if mode=='random':reason='Kho nhạc offline chưa có bài; đang dùng chuông thiền.'
-    path=Path(workspace)/'assets'/'thien_chuong.wav'
-    if not path.is_file():path=resource_path('assets','thien_chuong.wav')
-    return (path if path.is_file() else None),dict(name='Chuông thiền',reason=reason)
+    return None,dict(name='Chưa có nhạc',reason='Kho nhạc offline chưa có bài. Bấm Tải/bổ sung kho nhạc hoặc chọn lại folder footage.')
 
 
 def remote_manifest():

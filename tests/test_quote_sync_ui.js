@@ -72,5 +72,24 @@ function fixture(){
     assert.deepEqual(calls,['/api/quote_sync','/api/quote_catalog']);
     assert.equal(f.element('quoteInput').value,'Biết ơn mỗi ngày.','History refresh never overwrites the edited draft');
   }
+  {
+    const f=fixture();f.element('quoteInput').value='Câu một.';
+    let complete,submitted;
+    f.context.fakeApi=async(path,body)=>{submitted={path,body};return await new Promise(resolve=>{complete=resolve;});};
+    f.run('api=(...args)=>fakeApi(...args)');const pending=f.run('markQuoteDownloaded()');
+    assert.equal(submitted.path,'/api/mark_quote_downloaded');assert.equal(submitted.body.quote,'Câu một.');assert.equal(submitted.body.downloaded,true);
+    f.element('quoteInput').value='Bản nháp mới trong khi chờ.';
+    complete({quotes:[{key:'a',quote:'Câu một.',downloaded:true}],sync:{...f.sync,download_revision:1},download_history:{revision:1,records:[{quote:'Câu một.',is_downloaded:true,count:0,last_downloaded_at:null,status_source:'manual',status_at:1000}]}});
+    await pending;
+    assert.equal(f.element('quoteInput').value,'Bản nháp mới trong khi chờ.');
+    assert.equal(f.element('quoteDownloadStatus').textContent,'○ CHƯA TẢI VIDEO');
+    f.element('quoteInput').value='Câu một.';f.run('updateDownloadStatus()');
+    assert.match(f.element('quoteDownloadDetail').textContent,/Đã đánh dấu thủ công/);
+    assert.equal(f.element('btnMarkDownloaded').textContent,'↶ Bỏ đánh dấu đã tải');
+    f.context.fakeApi=async()=>{throw Error('Disk full');};await f.run('markQuoteDownloaded()');
+    assert.match(f.element('quoteDownloadDetail').textContent,/Disk full/);
+    f.run('state.downloadRecords[0].is_downloaded=false;updateDownloadStatus()');
+    assert.equal(f.element('btnMarkDownloaded').textContent,'✓ Đánh dấu đã tải');
+  }
   console.log('Sheet UI: add/edit/delete/reorder/empty preserve draft, plan, export and running batch; errors keep list.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -9,7 +9,7 @@ from core.settings import normalize_settings, load_settings
 from core.footage_pool import FootagePool
 from core.persistence import atomic_json
 
-PLAN_VERSION = 'multi-scene-v10-instant-draft-offline-music-downloads-2'
+PLAN_VERSION = 'multi-scene-v11-audible-preview-manual-download-status-no-bell-1'
 
 
 def fingerprint(path):

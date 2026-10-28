@@ -716,3 +716,5 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 .video-card{flex-shrink:0}.footage-usage{display:block;font-size:10px;line-height:1.35;padding:5px 3px;color:var(--text-muted);white-space:normal;}
 .video-card img{max-height:150px}.video-carousel{align-items:stretch;}
 @media(max-width:850px){.scene-list{grid-template-columns:1fr}.footage-tools{grid-template-columns:1fr;}}
+
+.preview-audio{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text-muted);}.preview-audio meter{width:70px;min-width:50px;height:10px;}

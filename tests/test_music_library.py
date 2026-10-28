@@ -30,6 +30,13 @@ class MusicTests(unittest.TestCase):
         self.assertEqual(music_folder(self.root,dict(background_video_directory=str(target))),target/'NHẠC NỀN')
         with self.assertRaises(ValueError):choose_music(self.root,normalize_settings(dict(music_mode='selected',music_path='missing')),'A')
         self.assertEqual(len(music_tracks(self.root,{})),3)
+    def test_legacy_bell_migrates_to_random_and_empty_library_has_no_bell_fallback(self):
+        settings=normalize_settings(dict(music_mode='bell'))
+        self.assertEqual(settings['music_mode'],'random')
+        with tempfile.TemporaryDirectory() as missing:
+            path,details=choose_music(missing,settings,'A')
+            self.assertIsNone(path);self.assertIn('chưa có bài',details['reason'])
+            self.assertNotIn('chuông',details['reason'])
     def test_download_hash_reuse_and_preserves_same_named_local_file(self):
         data=b'valid audio data';sha=hashlib.sha256(data).hexdigest()
         item=dict(path='music background/Test.mp3',size=len(data),lfs=dict(oid=sha))

@@ -8,7 +8,7 @@ if not ffmpeg:
     raise RuntimeError('Build needs FFmpeg on PATH.')
 media_bin = Path(ffmpeg).parent
 # Shared FFmpeg builds need their adjacent DLLs; retain their relative folder.
-data = [(str(root / 'ui'), 'ui'), (str(root / 'assets' / 'thien_chuong.wav'), 'assets')]
+data = [(str(root / 'ui'), 'ui')]
 for font in ['timesbd.ttf', 'segoeui.ttf', 'segoeuib.ttf']:
     candidate = root / 'assets' / 'fonts' / font
     if not candidate.exists():

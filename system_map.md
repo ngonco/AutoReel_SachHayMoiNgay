@@ -45,7 +45,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v10, rồi v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v11, rồi v10/v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -58,7 +58,7 @@ Chạy phát triển: `python -X utf8 app.py`. Chạy API thử: `python -X utf8
 | --- | --- | --- |
 | `core/` | Planner, layout, renderer, settings, jobs, media, đọc câu | Có |
 | `ui/` | HTML/CSS/JS; không tự chia chữ hoặc tính lại timeline | Có |
-| `assets/thien_chuong.wav` | Nhạc chuông thiền | Có |
+| `assets/thien_chuong.wav` | Asset lịch sử được giữ trên đĩa; v11 không dùng/không bundle | Có |
 | `assets/fonts/` | Font cục bộ tùy chọn; fallback Windows Fonts | Không chứa font Microsoft trong Git |
 | `CLIP TƯỢNG PHẬT LQ/DỌC`, `NGANG` | Kho MOV/MP4/M4V/MKV | Không |
 | `assets/imports/` | Kho phụ nếu chủ dự án tự thêm file | Không |
@@ -198,7 +198,7 @@ python -X utf8 build_onefile.py
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v10 trước ở `AutoReelSachHay_v10.previous.exe`, copy bản mới tên `AutoReelSachHay_v10.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v11 trước ở `AutoReelSachHay_v11.previous.exe`, copy bản mới tên `AutoReelSachHay_v11.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 
@@ -284,3 +284,14 @@ Các helper verify_v5/verify_v8/verify_v9 lưu lại quy trình của phiên b�
 - GET `/api/music` trả directory/tracks (id/path/name/url/metadata)/download; POST `/api/download_music` bắt đầu/bổ sung tải nền; POST `/api/open_music_folder` mở folder. GET `/api/music_file/{id}` chỉ phục vụ bài trong kho hiện tại; GET `/api/plan_music/{plan_id}` phục vụ đúng fingerprint nhạc của plan; cả hai hỗ trợ ranges. Nháp dùng audio riêng đồng bộ với timeline, Full HD vẫn dùng stream_loop và fade 0,6s/1,2s. Thiếu kho random có thông báo fallback chuông; selected bị mất báo lỗi.
 - `core.music_library` chỉ GET repo Hugging Face công khai `vinhn8n/voicedaoly`, folder `music background`; pin revision khi lấy manifest, 3 worker tải, SHA256 LFS + size + FFprobe audio trước atomic rename. File local cùng tên khác nội dung được giữ và bài tải có hậu tố hash; retry không tải lại file đúng. Tải đủ 175 bài ~430,8 MB từ revision `615a4b33c804a4a8a85aa7791ea3613d4749ad7a` trong đợt v10. Nhạc nằm cùng kho media được ignore, không đóng vào EXE và không đưa lên GitHub. Sau tải, phát nháp/xuất không cần mạng; chuyển folder footage không tự sao chép nhạc, dùng Tải/bổ sung tại folder mới khi cần.
 - Dữ liệu cần giữ qua nâng cấp: session_state.json, footage_usage.json, quote_download_history.json, draft_recovery.json và kho nhạc/video cá nhân. Tests mới: test_v10, test_quote_downloads, test_music_library và node test_draft_player; kiểm tra UI/API qua EXE riêng trước bàn giao.
+
+
+## V11 — Đánh dấu đã tải thủ công, sửa tiếng nháp và bỏ chuông thiền
+
+- PLAN_VERSION=`multi-scene-v11-audible-preview-manual-download-status-no-bell-1`; build/launcher ưu tiên AutoReelSachHay_v11.exe, giữ các phiên cũ. Kiểm tra bản hiện hành bằng `verify_v11.py --hold --fullhd`, có `--source` cho profile thử từ mã nguồn.
+- POST `/api/mark_quote_downloaded` nhận {quote,downloaded:true|false}, kiểm tra string không rỗng/tối đa 20.000 ký tự và boolean; trả catalog+download_history+sync+success. Dùng đúng snapshot câu lúc bấm, không đổi bản nháp/plan/cảnh hiện tại. UI có nút đánh dấu/bỏ đánh dấu ngay cạnh trạng thái, khóa khi request đang chạy; lỗi ghi được báo rõ, không giả thành công.
+- Lịch sử vẫn version1, thêm optional is_downloaded/status_source/status_at. Record v10 không có flag được hiểu là true. Mark/unmark giữ count, thời điểm/file tải thực tế; manual mới có count=0 và last_downloaded_at=null, UI ghi “Đã đánh dấu thủ công”. Mark lặp cùng trạng thái là idempotent; unmark không xóa audit. Tải file thành công mới tăng count và đặt lại is_downloaded=true/status_source=download. Annotate/startup/UI chỉ coi record có is_downloaded khác false là đã tải. Mark không chạm session_state/footage_usage và không dùng renderer/job/reservation.
+- Lỗi v10: mọi rejection của audio.play đều đặt audioBlocked, kể cả AbortError do pause/load lúc buffering; âm thanh sau đó không tự thử lại. V11 requestAudio theo epoch+generation, phân biệt AbortError (retry) và NotAllowedError (hiện nút bật tiếng), bỏ kết quả Promise cũ khi pause/đổi plan. Không phát audio trước khi frame/nhạc sẵn sàng; buffering giữ đồng hồ và tự thử khi sẵn sàng.
+- unlockAudio không còn đặt volume=0 rồi để Promise đua với pause. Tạo/resume AudioContext trong click, nối MediaElementSource → Gain → Analyser → destination; HTMLAudio luôn unmuted/volume1 ở chế độ graph, Gain nhận music_volume × fade. Không có AudioContext thì dùng volume HTMLAudio trực tiếp. Nhạc đúng music_url/fingerprint từ plan, không đổi layout/timeline/crop; âm footage vẫn mute. `previewAudioStatus`, `previewAudioLevel` hiển thị trạng thái/âm lượng và mức tín hiệu sau gain. Chỉ khi bị chặn thật mới hiện `btnEnablePreviewAudio`; zero-volume/none không bị tự nâng âm lượng.
+- Bỏ bell khỏi enum settings; giá trị cũ bell được normalize sang random. Kho random rỗng trả music=null cùng lý do chưa có nhạc; không fallback chuông. Bỏ lựa chọn chuông, nút nghe chuông, route /assets/thien_chuong.wav và data asset trong spec. File chuông lịch sử trên đĩa và EXE v10/cũ được giữ nguyên, không được v11 phát hoặc ghép. Nhạc offline người dùng không thay đổi.
+- Regression: Python manual mark/unmark/idempotency/restart/audit/invalid input; music legacy migration/empty no-bell; Node play-abort buffering → tự có tiếng lại, autoplay denial → enable, stale play rejection, manual status cập nhật khi đang sửa câu và lỗi ghi. Test trên profile --workspace riêng; dùng tín hiệu PCM/RMS của nguồn và Full HD, cùng RMS Analyser từ UI thật, không chỉ kiểm tra paused=false.

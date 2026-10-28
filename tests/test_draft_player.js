@@ -50,5 +50,33 @@ function fixture(){
     f.player.media[0]={index:0,status:'error',error:'bad clip'};f.player.tick(60);assert.equal(f.player.running,false);
     assert.match(f.statuses.at(-1)[0],/bad clip/);
   }
+  {
+    const f=fixture();await f.player.setPlan(f.plan);await f.flush();let rejectPlay,calls=0;
+    f.player.audio.play=()=>{calls++;f.player.audio.paused=false;return new Promise((resolve,reject)=>{rejectPlay=reject;});};
+    await f.player.play();await f.flush();assert.equal(calls,1);
+    f.player.media[0]={index:0,status:'preparing'};f.player.tick(30);
+    rejectPlay(Object.assign(new Error('Interrupted by buffering pause'),{name:'AbortError'}));await f.flush();
+    assert.equal(f.player.audioBlocked,false,'Buffering must not permanently disable the soundtrack');
+    f.player.media[0]={index:0,status:'ready',url:'/proxy0'};
+    f.player.audio.play=()=>{calls++;f.player.audio.paused=false;return Promise.resolve();};
+    f.player.tick(60);await f.flush();assert.equal(calls,2,'Sound automatically resumes once video data is ready');
+    assert.equal(f.player.audio.paused,false);assert.ok(f.player.audio.volume>0);assert.equal(f.player.audio.muted,false);
+  }
+  {
+    const f=fixture();await f.player.setPlan(f.plan);await f.flush();
+    f.player.audio.play=()=>Promise.reject(Object.assign(new Error('Autoplay denied'),{name:'NotAllowedError'}));
+    await f.player.play();await f.flush();assert.equal(f.player.audioBlocked,true);
+    f.player.audio.play=()=>{f.player.audio.paused=false;return Promise.resolve();};
+    f.player.enableAudio();await f.flush();assert.equal(f.player.audioBlocked,false);
+    assert.ok(f.player.audio.volume>0,'Unlocking never leaves the actual soundtrack at volume zero');
+  }
+  {
+    const f=fixture();await f.player.setPlan(f.plan);await f.flush();let rejectOld;
+    f.player.audio.play=()=>new Promise((resolve,reject)=>{rejectOld=reject;});
+    await f.player.play();await f.flush();
+    await f.player.setPlan({...f.plan,plan_id:'new',music:{path:'new-music',size:2,mtime_ns:2}});
+    rejectOld(Object.assign(new Error('Old play rejected'),{name:'NotAllowedError'}));await f.flush();
+    assert.equal(f.player.audioBlocked,false,'An obsolete play promise cannot block a newer plan');
+  }
   console.log('Draft player: attached decoders, source-time mapping, scene playback, seek, pause, design reuse and buffer/error clock checks passed.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
