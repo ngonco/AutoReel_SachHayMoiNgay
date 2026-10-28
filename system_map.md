@@ -33,7 +33,7 @@ git ls-remote origin refs/heads/main
 ```text
 BAT / VBS / EXE / python app.py
   → app.py: đường dẫn dữ liệu, ThreadingHTTPServer, API
-  → UI: nhập câu + clip cảnh đầu + settings
+  → UI: nhập câu + gợi ý footage từng cảnh + nhạc offline + settings
   → core.planner: kế hoạch cảnh duy nhất
       → core.paginator: chia chữ + thời gian đọc
       → core.video_detector: kho clip + thumbnail + ước lượng vị trí
@@ -41,11 +41,11 @@ BAT / VBS / EXE / python app.py
   → core.jobs: hàng đợi một worker
       → core.renderer: nền cắt/làm chậm → crossfade → overlay Pillow → nhạc
       → bản nhẹ 360×640 hoặc Full HD 1080×1920
-  → trình duyệt phát MP4 đã có chữ; không vẽ chồng canvas
+  → nháp trực tiếp: hai proxy footage + PNG chữ dùng chung renderer; Full HD/preview API cũ phát MP4 đã ghép
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v9, rồi v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v10, rồi v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -129,7 +129,7 @@ Viền chữ mềm dùng chung cho quote và credit, chỉnh qua settings: `outl
 
 `scene_overlay()` và `render_overlay()` dùng chung cho ảnh tĩnh, preview và Full HD. Preview thu nhỏ ảnh từ chính overlay Full HD. Renderer chuẩn hóa nền từng cảnh, làm chậm/crop/fps, sau đó ghép xfade và overlay theo timeline. Chốt `format=yuv444p,fps=30` trước xfade để tránh lỗi FFmpeg rate `1/0`. MP4 cuối H.264/yuv420p + AAC, faststart. Nhạc nền liên tục có fade đầu/cuối; âm thanh nguồn bị tắt.
 
-`render_reel_video()` là wrapper tương thích cho script cũ và trả `success/error`. Các tham số `music_path` và `video_volume` cũ chưa được ánh xạ vào planner; luồng mới dùng chuông thiền và tắt âm nguồn. Muốn thêm nhạc tùy chọn phải bổ sung fingerprint/API/settings đồng bộ, không chỉ sửa lệnh FFmpeg.
+`render_reel_video()` là wrapper tương thích cho script cũ và trả `success/error`. Các tham số `music_path` và `video_volume` cũ chưa được ánh xạ vào planner; V10 chọn nhạc qua music_mode/music_path/music_seed và fingerprint trong plan; luôn tắt âm footage. Tham số music_path của wrapper cũ vẫn chưa được chuyển sang chế độ selected; gọi planner/API mới để chọn bài cụ thể.
 
 ## 4. API và giao diện
 
@@ -164,7 +164,7 @@ V9 `core.jobs.JobManager` dùng một worker cho export/batch/save và một wor
 
 Tự lưu v5: `core.settings.load_settings()` đọc `session_state.json`; nếu chưa có mới nhập từ settings.json cũ. Bản v5 ghi file riêng để các EXE cũ còn mở không thể ghi đè bản nháp mới. `save_settings_patch()` nhận patch từng field, không reset field bị bỏ qua; `_client_id` + `_sequence` ngăn request cũ ghi đè request mới cùng trang. File ghi qua temp riêng + fsync + replace, có khóa liên phiên trong `core.persistence`.
 
-Frontend giữ nguyên quote (kể cả dòng trống/trailing Enter), quote_index, video_path, safe_zone và mọi control nội dung/thiết kế/âm lượng. UI báo Đang lưu/Đã lưu tự động/lỗi và tự thử lại; hàng đợi save gửi tuần tự, debounce 250ms, pagehide gửi beacon/keepalive. Reload khôi phục bản nháp và clip đã chọn; render không thay quote trong bản tự lưu. Safe zone chỉ là trạng thái xem, không vẽ vào MP4. Các field nháp được loại khỏi settings của plan để không tạo cache render vì thay đổi chế độ xem.
+Frontend giữ nguyên quote (kể cả dòng trống/trailing Enter), quote_index, video_path, safe_zone và mọi control nội dung/thiết kế/âm lượng. UI báo Đang lưu/Đã lưu tự động/lỗi và tự thử lại; hàng đợi save gửi tuần tự, debounce 250ms, pagehide gửi beacon/keepalive. V10 khởi động vào câu chưa tải đầu tiên và giữ bản soạn cũ trong draft_recovery.json để mở lại; render không thay quote trong bản tự lưu. Safe zone chỉ là trạng thái xem, không vẽ vào MP4. Các field nháp được loại khỏi settings của plan để không tạo cache render vì thay đổi chế độ xem.
 
 ### Tải video v6
 
@@ -198,7 +198,7 @@ python -X utf8 build_onefile.py
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v9 trước ở `AutoReelSachHay_v9.previous.exe`, copy bản mới tên `AutoReelSachHay_v9.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v10 trước ở `AutoReelSachHay_v10.previous.exe`, copy bản mới tên `AutoReelSachHay_v10.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 
@@ -209,7 +209,7 @@ python -X utf8 build_onefile.py
 | Chia câu / thời gian đọc | paginator + planner + unit tests |
 | Chọn clip / cắt nguồn / speed | planner; render_plan áp dụng dữ liệu đã tính |
 | Footer/font/theme | layout_overlay/render_overlay, bump PLAN_VERSION, ảnh review |
-| Play/tua/chuyển cảnh trong UI | app.js; kiểm tra dùng MP4 đã dựng, không thêm overlay client |
+| Play/tua/chuyển cảnh trong UI | draft_player.js + app.js; nháp dùng proxy + PNG renderer; MP4 Full HD phải ẩn canvas |
 | API/streaming | app.py; byte range tests |
 | Hàng đợi/progress/cache job | jobs.py |
 | Tự lưu/khôi phục bản nháp | settings.py + persistence.py + app.js |
@@ -224,7 +224,7 @@ python -X utf8 build_onefile.py
 
 - Không có AI ngữ nghĩa để chọn clip theo ý câu, không có TTS; chọn clip theo quy tắc đã chốt.
 - Vị trí mặt là gợi ý từ ảnh mẫu; người dùng cần xem toàn reel trước khi xuất.
-- Preview lần đầu phải chờ render; CPU/RAM và độ phân giải nguồn ảnh hưởng thời gian.
+- V10 không dựng cả Reel khi xem nháp. Footage mới cần chuẩn bị proxy một lần; CPU/RAM/đĩa và độ phân giải nguồn ảnh hưởng thời gian. Nháp trực tiếp có thể khác nhẹ chuyển cảnh/màu so với Full HD.
 - Cache chưa tự dọn, job chưa có hủy/tự tiếp tục render sau restart; lượt giữ chỗ của tiến trình đã thoát được trả lại. Chỉ xóa cache khi không có render; session_state và footage_usage là dữ liệu bền vững, không phải cache.
 - Kho clip hỏng được bỏ qua trong scan; clip người dùng chọn trực tiếp bị lỗi sẽ báo rõ.
 - Nguồn ngoài chọn qua picker được nhớ đường dẫn và đăng ký trong kho lượt; không tự copy file vào dự án. Nếu nguồn bị di chuyển/xóa, cần chọn lại.
@@ -267,4 +267,20 @@ Chạy thử với dữ liệu riêng: `app.py --headless --workspace <thư mụ
 - UI debounce plan 350 ms, sau đó chờ ổn định 900 ms để chuẩn bị preview. Dùng chung Promise giữa warm-up và click Play; preload file, không tự phát/không đổi cảnh đang chọn; kết quả revision cũ không được đưa lên player. Poll preview 250 ms; đã sẵn sàng thì Play không gọi dựng lại. Thay nội dung/clip/settings xóa trạng thái và timer preview; đổi danh sách Sheet giữ nguyên preview của bản nháp. JobManager.close đóng cả hai executor.
 - Kiểm tra mới: `tests/test_line_spacing.py`, `tests/test_fast_preview.py`, `node tests/test_fast_preview_ui.js`. `verify_v9.py --hold --real-source <clip>` kiểm tra thêm câu trong ảnh mẫu qua overlay/preview/Full HD của EXE và độ trễ lấy cache; clip thật chỉ đọc, mọi dữ liệu/lượt dùng nằm trong profile thử.
 
-Các helper verify_v5/verify_v8 lưu lại quy trình của phiên bản lịch sử; kiểm tra launcher và API mới bằng verify_v9.py. Profile thử mới có thể dùng --no-sheet-sync để tránh thay danh sách TXT bằng Sheet thật.
+Các helper verify_v5/verify_v8/verify_v9 lưu lại quy trình của phiên bản lịch sử; kiểm tra launcher và API mới bằng verify_v10.py. Profile thử mới có thể dùng --no-sheet-sync để tránh thay danh sách TXT bằng Sheet thật.
+
+
+## V10 — Chọn footage theo cảnh, nháp trực tiếp, lịch sử tải và nhạc offline
+
+- PLAN_VERSION=`multi-scene-v10-instant-draft-offline-music-downloads-2`; EXE/launcher ưu tiên v10, giữ mọi phiên cũ. `verify_v10.py --hold --fullhd` dùng profile riêng, `--source` dành cho chạy nguồn. Các helper v5/v8/v9 giữ để tái hiện bản lịch sử.
+- `scene_video_preferences` là map index cảnh → {path,text}, tự lưu cùng `imported_video_paths`. Planner chỉ dùng gợi ý khớp text của cảnh, trong nguồn đang hoạt động/clip thêm riêng; duplicate nội dung vẫn một footage. Gợi ý được xét sau `_candidates` chống lặp/ít lượt dùng; trả `scene_choices` (eligible/effective_count/reason) và `scene_suggestions`, mỗi scene có `suggestion`. Reservation/check_sequence vẫn kiểm chứng cùng tập ứng viên; batch bỏ gợi ý và imports riêng.
+- Kịch bản, tìm/lọc, thumbnail và gợi ý footage nằm cùng panel; lựa chọn áp dụng cảnh đang chọn và tự phát cảnh đó. Đổi clip/thiết kế giữ cảnh và vị trí cuộn; thay nội dung hoặc auto_paginate xóa gợi ý. UI chống kết quả revision cũ khi đổi liên tục. `probe` dùng LRU theo path/size/mtime_ns.
+- `core.draft_media.DraftMediaService` có một daemon worker: ưu tiên cảnh chọn, cảnh còn lại, rồi kho đang hoạt động; đổi folder bỏ queue cũ, không xóa nguồn/cache. Không nhận việc chuyển đổi mới khi có export/batch/save trong JobManager; một chuyển đổi đã chạy được hoàn tất. Cache `.cache/draft_media/{sha256-32}.mp4` theo fingerprint + proxy version, không phụ thuộc chữ/nhạc; H264/yuv420p 360×640/30fps/GOP15, không âm thanh, faststart. Có khóa liên phiên, partial riêng, kiểm tra nguồn trước khi publish, trạng thái lỗi và retry rõ; không đụng lượt footage.
+- POST `/api/draft_prepare` {plan_id,selected_scene} → scenes [{index,key,status,url/error}], library; GET `/api/draft_status/{plan_id}` cùng snapshot. GET `/api/draft_media/{key}.mp4` chỉ cho key đã xác thực từ kho/plan và nguồn không đổi, dùng byte ranges; không nhận đường dẫn tùy ý.
+- `ui/draft_player.js` dùng hai video decoder gắn trong DOM và canvas; điều khiển từ plan.start/end/text_start/text_end/source_start/source_end/speed/transition. PlaybackRate có fallback seek khung; pause/buffer đóng băng đồng hồ chung và nhạc. Fade nền/chữ theo plan, preload kế tiếp, hai lớp chỉ dùng cho nháp trực tiếp. PNG vẫn do `scene_overlay`/`render_overlay` Full HD tạo, không layout chữ ở JavaScript. Overlay cache theo text/resolved_pos/các thiết lập thiết kế/version, không theo clip/nhạc/duration; UI dùng overlay_key để dùng lại ảnh. Nguồn decode được giữ khi chỉ đổi thiết kế. API `/api/preview` và renderer MP4 nhẹ v9 vẫn giữ cho tương thích, UI không còn gọi để warm-up/Play. Xem lại MP4 Full HD ẩn canvas để tránh chồng chữ hai lần.
+- `core.quote_downloads.QuoteDownloadHistory` lưu `quote_download_history.json` version1, revision và map SHA256 của NFC + gộp whitespace; record quote/count/first_downloaded_at/last_downloaded_at/last_path/last_job_id. Khóa + ghi atomic, không tự reset file lỗi. Chỉ JobManager._save_work sau copy thành công ghi lịch sử, không ghi từ render/batch/preview; dùng quote snapshot của render job. Ghi lịch sử lỗi vẫn trả saved_path thành công với history_warning. Không nhập đoán lịch sử video trước v10.
+- GET `/api/download_history` trả revision/records đã bỏ đường dẫn và job nội bộ. GET `/api/quote_catalog` bổ sung downloaded/last_downloaded_at từng quote và download_history; `/api/quote_sync` thêm download_revision để các cửa sổ cập nhật trạng thái. POST `/api/startup_quote` chọn index chưa tải đầu tiên, all_downloaded và recovery_available; giữ nguyên settings cũ trong `draft_recovery.json` trước khi UI chuyển câu. GET `/api/previous_draft` phục hồi bản soạn. Khi mọi câu đã tải: chọn index0 và báo rõ; rỗng: giữ bản nháp. Bản Sheet mới chỉ được chọn tự động trong bước khởi động nếu người dùng chưa tương tác, sau đó luôn giữ bản đang soạn.
+- Nhạc offline ở `<background_video_directory>/NHẠC NỀN`, mặc định `CLIP TƯỢNG PHẬT LQ/NHẠC NỀN`. `music_mode=random|selected|bell|none`, music_path/music_seed tự lưu; previous_music_path chỉ là ngữ cảnh request, không autosave. Random theo quote+seed và tập nhạc, loại bài trước khi còn lựa chọn; UI đổi seed khi đổi câu/đổi ngẫu nhiên, thay thiết kế/footage giữ seed. Batch mang previous_music_path qua mỗi Reel thành công. Plan.music giữ fingerprint, thêm music_details và music_url; Full HD dùng cùng nhạc, source fingerprint kiểm tra khi chạy.
+- GET `/api/music` trả directory/tracks (id/path/name/url/metadata)/download; POST `/api/download_music` bắt đầu/bổ sung tải nền; POST `/api/open_music_folder` mở folder. GET `/api/music_file/{id}` chỉ phục vụ bài trong kho hiện tại; GET `/api/plan_music/{plan_id}` phục vụ đúng fingerprint nhạc của plan; cả hai hỗ trợ ranges. Nháp dùng audio riêng đồng bộ với timeline, Full HD vẫn dùng stream_loop và fade 0,6s/1,2s. Thiếu kho random có thông báo fallback chuông; selected bị mất báo lỗi.
+- `core.music_library` chỉ GET repo Hugging Face công khai `vinhn8n/voicedaoly`, folder `music background`; pin revision khi lấy manifest, 3 worker tải, SHA256 LFS + size + FFprobe audio trước atomic rename. File local cùng tên khác nội dung được giữ và bài tải có hậu tố hash; retry không tải lại file đúng. Tải đủ 175 bài ~430,8 MB từ revision `615a4b33c804a4a8a85aa7791ea3613d4749ad7a` trong đợt v10. Nhạc nằm cùng kho media được ignore, không đóng vào EXE và không đưa lên GitHub. Sau tải, phát nháp/xuất không cần mạng; chuyển folder footage không tự sao chép nhạc, dùng Tải/bổ sung tại folder mới khi cần.
+- Dữ liệu cần giữ qua nâng cấp: session_state.json, footage_usage.json, quote_download_history.json, draft_recovery.json và kho nhạc/video cá nhân. Tests mới: test_v10, test_quote_downloads, test_music_library và node test_draft_player; kiểm tra UI/API qua EXE riêng trước bàn giao.

@@ -5,7 +5,8 @@ DEFAULTS = dict(credit='Thanh Vị Sách Hay Mỗi Ngày', credit_size=20, quote
                 outline_enabled=True, outline_color='auto', outline_width=4,
                 outline_blur=8, outline_opacity=.85,
                 quote=None, quote_index=0, video_path='', safe_zone=False, last_save_directory='',
-                background_video_directory='')
+                background_video_directory='', scene_video_preferences={}, imported_video_paths=[],
+                music_mode='random',music_path='',music_seed='')
 ALIASES = dict(creditSize='credit_size', quoteSize='quote_size', themeIndex='theme_index',
                posMode='pos_mode', verticalOffset='vertical_offset', autoPaginate='auto_paginate',
                musicVolume='music_volume', outlineEnabled='outline_enabled', outlineColor='outline_color',
@@ -36,6 +37,23 @@ def normalize_settings(values=None):
     result['video_path'] = str(result['video_path'] or '')
     result['last_save_directory'] = str(result['last_save_directory'] or '')
     result['background_video_directory'] = str(result['background_video_directory'] or '').strip()
+    result['music_mode']=str(result['music_mode'])
+    if result['music_mode'] not in ('random','selected','bell','none'):result['music_mode']='random'
+    result['music_path']=str(result['music_path'] or '')
+    result['music_seed']=str(result['music_seed'] or '')[:100]
+    preferences = result['scene_video_preferences']
+    if not isinstance(preferences, dict) or len(preferences) > 1000:
+        raise ValueError('Gợi ý footage theo cảnh không hợp lệ.')
+    result['scene_video_preferences'] = {}
+    for index, value in preferences.items():
+        if not str(index).isdigit() or int(index) > 999 or not isinstance(value, dict):
+            raise ValueError('Gợi ý footage theo cảnh không hợp lệ.')
+        result['scene_video_preferences'][str(int(index))] = {
+            'path': str(value.get('path') or ''), 'text': str(value.get('text') or '')[:20000]}
+    imports = result['imported_video_paths']
+    if not isinstance(imports, list) or len(imports) > 1000:
+        raise ValueError('Danh sách video thêm riêng không hợp lệ.')
+    result['imported_video_paths'] = list(dict.fromkeys(str(p) for p in imports if isinstance(p, str) and p))
     import re
     color = str(result['outline_color']).lower()
     result['outline_color'] = color if color == 'auto' or re.fullmatch(r'#[0-9a-f]{6}', color) else DEFAULTS['outline_color']

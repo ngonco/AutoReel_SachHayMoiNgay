@@ -31,7 +31,10 @@ if '--workspace' in sys.argv:
 from core.quote_sync import QuoteSyncService
 from core.video_detector import VideoDetector
 from core.planner import build_plan, load_plan
-from core.renderer import scene_overlay
+from core.renderer import scene_overlay, overlay_key
+from core.draft_media import DraftMediaService
+from core.quote_downloads import QuoteDownloadHistory
+from core.music_library import MusicLibraryService, music_tracks
 from core.settings import normalize_settings, save_settings_patch, load_settings
 from core.jobs import JobManager
 from core.downloads import SaveVideoService
@@ -42,6 +45,8 @@ jobs = None
 downloads = None
 video_library = None
 quote_sync = None
+draft_media = None
+music_library = None
 settings_lock = threading.Lock()
 
 
@@ -60,24 +65,48 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         try:
             path = unquote(urlparse(self.path).path)
-            if path in ('/', '/index.html', '/app.js', '/style.css'):
+            if path in ('/', '/index.html', '/app.js', '/draft_player.js', '/style.css'):
                 name = 'index.html' if path == '/' else path[1:]
-                return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
+                return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'draft_player.js':'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
             if path == '/api/health':
-                return self._send_json(dict(success=True, version='multi-scene-v9', pid=os.getpid()))
+                return self._send_json(dict(success=True, version='multi-scene-v10', pid=os.getpid()))
             if path == '/api/quotes':
                 return self._send_json(quote_sync.get_quotes())
             if path == '/api/quote_catalog':
-                return self._send_json(quote_sync.snapshot())
+                return self._send_json(QuoteDownloadHistory(BASE_DIR).annotate(quote_sync.snapshot()))
             if path == '/api/quote_sync':
-                return self._send_json(quote_sync.status())
+                return self._send_json({**quote_sync.status(),'download_revision':QuoteDownloadHistory(BASE_DIR).snapshot()['revision']})
+            if path == '/api/download_history':
+                return self._send_json(QuoteDownloadHistory(BASE_DIR).snapshot())
+            if path == '/api/music':
+                return self._send_json(music_library.catalog(read_settings()))
+            if path.startswith('/api/plan_music/'):
+                plan=load_plan(path.rsplit('/',1)[-1],BASE_DIR)
+                if not plan.get('music'):raise ValueError('Kế hoạch không có nhạc.')
+                import mimetypes
+                source=Path(plan['music']['path'])
+                return self._serve_file(source,mimetypes.guess_type(source.name)[0] or 'application/octet-stream')
+            if path.startswith('/api/music_file/'):
+                track=next((t for t in music_tracks(BASE_DIR,read_settings()) if t['id']==path.rsplit('/',1)[-1]),None)
+                if not track:raise ValueError('Bài nhạc không còn trong kho offline.')
+                import mimetypes
+                source=Path(track['path'])
+                return self._serve_file(source,mimetypes.guess_type(source.name)[0] or 'application/octet-stream')
+            if path == '/api/previous_draft':
+                return self._send_json(QuoteDownloadHistory(BASE_DIR).previous_draft())
             if path == '/api/videos':
                 videos=video_detector.scan_all_videos()
-                saved_path=read_settings().get('video_path','')
-                if saved_path and Path(saved_path).is_file() and all(v['path']!=saved_path for v in videos):
-                    try:videos.append(video_detector.analyze_video(saved_path))
-                    except (OSError,ValueError):pass
+                saved=read_settings()
+                for saved_path in [saved.get('video_path',''),*saved['imported_video_paths']]:
+                    if saved_path and Path(saved_path).is_file() and all(v['path']!=saved_path for v in videos):
+                        try:videos.append(video_detector.analyze_video(saved_path))
+                        except (OSError,ValueError):pass
+                if draft_media:draft_media.set_library(videos)
                 return self._send_json(videos)
+            if path.startswith('/api/draft_status/'):
+                return self._send_json(draft_media.status(load_plan(path.rsplit('/',1)[-1], BASE_DIR)))
+            if path.startswith('/api/draft_media/'):
+                return self._serve_file(draft_media.media_path(path.rsplit('/',1)[-1]), 'video/mp4')
             if path == '/api/settings':
                 return self._send_json(read_settings())
             if path.startswith('/api/jobs/'):
@@ -88,7 +117,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 scene = plan['scenes'][int(index)]
                 folder = BASE_DIR / '.cache' / 'overlays'
                 folder.mkdir(parents=True, exist_ok=True)
-                target = folder / f'{plan_id}_{int(index)}.png'
+                target = folder / (overlay_key(plan,scene)+'.png')
                 if not target.is_file():
                     # Separate temporary files avoid races between parallel browser requests.
                     import uuid
@@ -127,10 +156,23 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 return self._send_json(dict(success=True, settings=settings))
             if path == '/api/quote_sync':
                 return self._send_json(quote_sync.request_refresh(), 202)
+            if path == '/api/startup_quote':
+                return self._send_json(QuoteDownloadHistory(BASE_DIR).startup(quote_sync.snapshot(),read_settings()))
+            if path == '/api/download_music':
+                return self._send_json(music_library.download(read_settings()),202)
+            if path == '/api/open_music_folder':
+                from core.music_library import music_folder
+                folder=music_folder(BASE_DIR,read_settings());folder.mkdir(parents=True,exist_ok=True)
+                os.startfile(str(folder));return self._send_json(dict(success=True))
             if path == '/api/plan':
                 return self._send_json(build_plan(body, BASE_DIR, video_detector))
+            if path == '/api/draft_prepare':
+                plan=load_plan(str(body.get('plan_id','')),BASE_DIR)
+                return self._send_json(draft_media.prepare(plan,body.get('selected_scene',0)),202)
             if path == '/api/select_video_directory':
-                return self._send_json(video_library.select(body.get('use_default') is True))
+                result=video_library.select(body.get('use_default') is True)
+                if not result.get('cancelled') and draft_media:draft_media.set_library(result['videos'])
+                return self._send_json(result)
             if path == '/api/select_save_video':
                 return self._send_json(downloads.select(body.get('quote', '')))
             if path == '/api/save_video':
@@ -147,7 +189,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                     job = jobs.get(job['job_id'])
                 return self._send_json(job.get('result', dict(success=False, error=job.get('error'))))
             if path == '/api/batch_render':
-                body = {**body, 'background_video_directory': body.get('background_video_directory', read_settings()['background_video_directory'])}
+                body = {**{k:v for k,v in body.items() if k not in ('scene_video_preferences','imported_video_paths')}, 'background_video_directory': body.get('background_video_directory', read_settings()['background_video_directory'])}
                 videos = video_detector.scan_all_videos(body['background_video_directory'])
                 if not videos:
                     raise ValueError('Kho video trống.')
@@ -258,7 +300,7 @@ def launch_app_window(url):
 
 
 def main():
-    global video_detector, jobs, downloads, video_library, quote_sync
+    global video_detector, jobs, downloads, video_library, quote_sync, draft_media, music_library
     logs = BASE_DIR / 'logs'
     logs.mkdir(exist_ok=True)
     logging.basicConfig(filename=logs / 'app.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -272,6 +314,8 @@ def main():
     downloads = SaveVideoService(BASE_DIR)
     video_library = VideoLibraryService(BASE_DIR, video_detector)
     quote_sync = QuoteSyncService(BASE_DIR, enabled='--no-sheet-sync' not in sys.argv)
+    draft_media = DraftMediaService(BASE_DIR, jobs.export_busy)
+    music_library = MusicLibraryService(BASE_DIR)
     if '--batch' in sys.argv:
         quote_sync.refresh()
         videos = video_detector.scan_all_videos()
@@ -288,6 +332,7 @@ def main():
             job = jobs.get(job['job_id'])
         print(json.dumps(job, ensure_ascii=False))
         jobs.close()
+        draft_media.close()
         return
     port = int(sys.argv[sys.argv.index('--port') + 1]) if '--port' in sys.argv else find_free_port()
     server = ThreadingHTTPServer(('127.0.0.1', port), ReelRequestHandler)
@@ -305,6 +350,7 @@ def main():
     finally:
         server.server_close()
         quote_sync.close()
+        draft_media.close()
         jobs.close()
 
 

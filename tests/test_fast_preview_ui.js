@@ -7,7 +7,7 @@ function fixture(){
     setTimeout:(cb,ms)=>{timers.set(++timer,{cb,ms});return timer;},clearTimeout:id=>timers.delete(id),console});
   vm.runInContext(fs.readFileSync('ui/app.js','utf8'),context);
   const run=code=>vm.runInContext(code,context);
-  run("state.ready=true;state.plan={plan_id:'plan',quote:'Bình an.',duration:4,scenes:[{footage_id:'a'.repeat(24)}]};state.lastAcceptedPlan=state.plan;state.contextQuote='Bình an.';renderScenes=()=>{};drawStill=()=>{};playUrl=async url=>{playedUrl=url;};");
+  run("state.ready=true;state.plan={plan_id:'plan',quote:'Bình an.',duration:4,scenes:[{footage_id:'a'.repeat(24)}]};state.lastAcceptedPlan=state.plan;state.contextQuote='Bình an.';renderScenes=()=>{};drawStill=()=>{};populateQuotes=()=>{};playUrl=async url=>{playedUrl=url;};");
   const calls=[];
   context.record=async(path,body)=>{calls.push({path,body});return {status:'done',result:{url:'/preview.mp4'}};};
   run('api=(...args)=>record(...args)');
@@ -15,31 +15,32 @@ function fixture(){
 }
 (async()=>{
   {
-    const f=fixture();f.run('scheduleWarmPreview(state.plan)');
-    const warm=[...f.timers.values()].find(t=>t.ms===900);assert.ok(warm);warm.cb();
-    await f.run('state.previewRequest.promise');
-    assert.equal(f.calls.length,1);assert.equal(f.calls[0].path,'/api/preview');
-    assert.ok(f.calls[0].body.preview_client_id);
-    assert.equal(f.element('previewVideo').loads,1);assert.equal(f.element('previewVideo').plays,undefined);
-    assert.equal(f.run('state.loadedPlan'),null,'Preload must not change active scene/player state');
-    await f.run('togglePlayback()');assert.equal(f.calls.length,1,'Play uses the prepared MP4 without another server request');
-    assert.equal(f.run('playedUrl'),'/preview.mp4');
+    const f=fixture();let setPlan=null,played=null;
+    f.context.fakeDraft={running:false,mode:'scene',time:2,pause(){},clear(){},unlockAudio(){},setPlan(plan){this.plan=plan;setPlan=plan;},play(index){played=index;}};
+    f.run('draft=fakeDraft');
+    await f.run('togglePlayback()');
+    assert.equal(f.calls.length,0,'Instant Play never submits a rendered preview job');
+    assert.equal(f.context.fakeDraft.time,0,'Full Reel starts at zero after a scene preview');
+    assert.equal(played,undefined);assert.ok(setPlan);
   }
   {
-    const f=fixture();let complete;
-    f.context.record=async(path,body)=>{f.calls.push({path,body});return await new Promise(resolve=>{complete=resolve;});};
-    const warming=f.run('preparePreview(state.plan)');
-    const clicking=f.run('togglePlayback()');
-    await Promise.resolve();complete({status:'done',result:{url:'/shared.mp4'}});
-    await Promise.all([warming,clicking]);assert.equal(f.calls.length,1,'Click and background prep share one request');
+    const f=fixture();f.context.setTimeout=()=>0;f.run('populateVideos=()=>{};');
+    f.run("state.plan={plan_id:'p',scenes:[{text:'Cảnh một.'},{text:'Cảnh hai.'}]};state.selectedScene=1;state.settings.scene_video_preferences={};state.currentVideo={path:'first.mp4'};");
+    f.context.nextVideo={path:'replacement.mp4',name:'replacement.mp4'};
+    f.run('selectVideo(nextVideo)');
+    assert.equal(f.run('state.selectedScene'),1);
+    assert.equal(f.run("state.settings.scene_video_preferences['1'].path"),'replacement.mp4');
+    assert.equal(f.run('state.currentVideo.path'),'first.mp4','Selecting scene two does not change legacy scene-one hint');
+    assert.equal(f.run('state.pendingScenePlayback'),1);
+    f.run('state.settings.quote_size=80;invalidate({preserveScene:true})');
+    assert.equal(f.run("state.settings.scene_video_preferences['1'].path"),'replacement.mp4');
+    f.element('quoteInput').value='Câu mới.';f.run('invalidate()');
+    assert.equal(f.run('Object.keys(state.settings.scene_video_preferences).length'),0);
   }
-  {
-    const f=fixture();let complete;
-    f.context.record=async()=>await new Promise(resolve=>{complete=resolve;});
-    const old=f.run('preparePreview(state.plan)');
-    f.element('quoteInput').value='Câu mới.';f.run("invalidate();state.plan={plan_id:'new',quote:'Câu mới.',scenes:[],duration:4};");
-    complete({status:'done',result:{url:'/obsolete.mp4'}});await old;
-    assert.equal(f.run('state.previewUrl'),null);assert.equal(f.element('previewVideo').loads,undefined);
-  }
-  console.log('Fast preview UI: background prep, preload without autoplay, instant reuse, shared request and stale-result isolation passed.');
+  const source=fs.readFileSync('ui/app.js','utf8');
+  assert.equal(source.includes("api('/api/preview'"),false,'UI no longer creates whole-Reel draft MP4 jobs');
+  const html=fs.readFileSync('ui/index.html','utf8');
+  assert.ok(html.indexOf('id="sceneList"')<html.indexOf('id="videoCarousel"'));
+  assert.ok(html.indexOf('id="sceneList"')>html.indexOf('02 / Kịch bản'));
+  console.log('Instant draft UI: no render submission, per-scene preference, selection preservation and content reset passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from functools import lru_cache
 
 
 def resource_path(*parts):
@@ -24,6 +25,13 @@ def run_media(args, **kwargs):
 
 
 def probe(path):
+    source = Path(path).resolve()
+    stat = source.stat()
+    return dict(_probe_cached(str(source), stat.st_size, stat.st_mtime_ns))
+
+
+@lru_cache(maxsize=1024)
+def _probe_cached(path, size, mtime_ns):
     result = run_media([tool_path('ffprobe'), '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(path)], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30)
     if result.returncode:
         raise ValueError('Không đọc được video: ' + Path(path).name)

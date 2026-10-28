@@ -12,7 +12,7 @@ function fixture() {
   const context=vm.createContext({document:{getElementById:element},window:{addEventListener(){}},crypto:require('node:crypto').webcrypto,setTimeout,clearTimeout,console,
     fetch:async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)})});
   vm.runInContext(fs.readFileSync('ui/app.js','utf8'),context);
-  vm.runInContext('renderScenes=()=>{};drawStill=()=>{};showStatic=()=>{};',context);
+  vm.runInContext('renderScenes=()=>{};drawStill=()=>{};showStatic=()=>{};populateVideos=()=>{};',context);
   context.record=async(path,body)=>{
     calls.push({path,body:structuredClone(body)});
     if(path==='/api/select_save_video')return {save_token:'chosen'};

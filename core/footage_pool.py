@@ -90,13 +90,14 @@ class FootagePool:
         return set(requested) | (set(previous.get('ids', []))
                                  if quote and previous.get('quote') != quote else set())
 
-    def preview(self,videos,count,preferred=None,avoid_ids=None,quote=''):
+    def preview(self,videos,count,preferred=None,avoid_ids=None,quote='',scene_preferences=None):
         with file_mutex(self.lock):
             state=self._read();changed=self._clean(state)
-            incoming={}
+            incoming={};path_keys={}
             for video in videos:
                 key=self._identity(video,state)
                 incoming.setdefault(key,video)
+                path_keys[str(Path(video['path']).resolve())]=key
             preferred_key=self._identity(preferred,state) if preferred else None
             if preferred:incoming[preferred_key]=preferred
             for key,video in incoming.items():
@@ -118,10 +119,25 @@ class FootagePool:
             remaining=sum(v==minimum for v in effective.values())
             requested = sorted(set(avoid_ids or []))
             avoid = self._avoid(state, requested, quote)
-            result=[];used=set();seen=set();fallback=[];repeated=[]
+            result=[];used=set();seen=set();fallback=[];repeated=[];choices=[];suggestions=[]
             for i in range(count):
                 eligible=self._candidates(ordered,effective,used,avoid,last)
-                key=preferred_key if i==0 and preferred_key in eligible else next(k for k in ordered if k in eligible)
+                requested_path=(scene_preferences or {}).get(i)
+                wanted=path_keys.get(requested_path) if requested_path else (preferred_key if i==0 else None)
+                options=[]
+                for candidate in ordered:
+                    reason = ('' if candidate in eligible else
+                              'Đã dùng trong Reel này' if candidate in used and len(used)<len(ordered) else
+                              'Thuộc câu trước' if candidate in avoid and any(k not in avoid for k in (set(ordered)-used or set(ordered))) else
+                              'Có clip ít lượt dùng hơn' if effective[candidate]>min(effective[k] for k in eligible) else
+                              'Trùng cảnh liền trước')
+                    options.append(dict(footage_id=candidate,path=inventory[candidate]['path'],eligible=candidate in eligible,
+                                        effective_count=effective[candidate],reason=reason))
+                choices.append(options)
+                key=wanted if wanted in eligible else next(k for k in ordered if k in eligible)
+                suggestions.append(dict(requested_path=requested_path or (preferred['path'] if i==0 and preferred else ''),
+                                        accepted=bool(wanted==key),reason=next((o['reason'] for o in options if o['footage_id']==wanted),
+                                        'Clip gợi ý không còn trong nguồn khả dụng') if wanted!=key else ''))
                 if key in avoid:fallback.append(i)
                 if key in seen:repeated.append(i)
                 if len(used)==len(ordered):used.clear()
@@ -130,7 +146,8 @@ class FootagePool:
             return result,dict(revision=state['revision'],total=len(ordered),remaining=remaining,
                                preferred_replaced=bool(preferred_key and result and result[0][0]!=preferred_key),
                                active_ids=ordered,avoid_ids=sorted(avoid),requested_avoid_ids=requested,
-                               quote=quote,fallback_scenes=fallback,repeated_scenes=repeated)
+                               quote=quote,fallback_scenes=fallback,repeated_scenes=repeated,
+                               scene_choices=choices,scene_suggestions=suggestions)
 
     def _check_sequence(self,state,ids,active,avoid,include_reserved=False):
         if not active or any(key not in state['inventory'] for key in active):

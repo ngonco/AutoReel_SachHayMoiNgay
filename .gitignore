@@ -42,3 +42,9 @@ settings.json.*.tmp
 session_state.json
 session_state.lock
 session_state.json.*.tmp
+quote_download_history.json
+quote_download_history.lock
+quote_download_history.json.*.tmp
+draft_recovery.json
+draft_recovery.lock
+draft_recovery.json.*.tmp

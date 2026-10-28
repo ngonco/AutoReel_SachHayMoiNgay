@@ -37,6 +37,8 @@ class VideoLibraryService:
             # Validate before replacing the remembered library. Never copy or alter source clips.
             videos = self.detector.scan_all_videos(directory)
             settings = save_settings_patch(self.workspace,
-                                          dict(background_video_directory=directory, video_path=''))
+                                          dict(background_video_directory=directory, video_path='',
+                                               scene_video_preferences={}, imported_video_paths=[],music_path='',
+                                               music_mode='random' if saved['music_mode']=='selected' else saved['music_mode']))
             return dict(success=True, cancelled=False, directory=directory, videos=videos,
                         settings=settings)

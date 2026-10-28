@@ -8,13 +8,16 @@ const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null,
   lastRenderedUrl: null, lastExport: null, previewUrl: null, busyPreview: false, ready: false,
   previousFootageIds: [], lastAcceptedPlan: null, contextQuote: '', inventoryReady: true,
   busyExport: false, busyBatch: false, busyLibrary: false,
-  quoteCatalogRevision:null, busyQuoteRefresh:false, batchTotal:0,
-  previewRequest:null, preparedPreviewPlan:null,
+  quoteCatalogRevision:null, busyQuoteRefresh:false, batchTotal:0, downloadRevision:0,downloadRecords:[],
+  previewRequest:null, preparedPreviewPlan:null, pendingScenePlayback:null,
+  musicTracks:[],previousMusicPath:'',
   settings: {credit_size:20, quote_size:68, theme_index:0, pos_mode:'auto', vertical_offset:0,
     shade:.7, duration:12, auto_paginate:true, autofit:true, music_volume:.85,
     outline_enabled:true, outline_color:'auto', outline_width:4, outline_blur:8, outline_opacity:.85,
-    background_video_directory:''}};
+    background_video_directory:'',scene_video_preferences:{},imported_video_paths:[],music_mode:'random',music_path:'',music_seed:''}};
 let saveTimer, planTimer, warmPreviewTimer;
+let draft=null;
+const overlayImages=new Map();
 let saving=false, savePending=false, lastSavedSettings={}, saveSequence=0;
 const saveClientId=crypto.randomUUID();
 
@@ -28,11 +31,11 @@ function payload() {
   const {last_save_directory, ...settings}=state.settings;
   return {...settings, quote:$('quoteInput').value.normalize('NFC'), quote_index:Math.max(0,state.currentQuoteIndex),
     credit:$('creditInput').value.normalize('NFC'), video_path:state.currentVideo?.path || '',
-    previous_footage_ids:[...state.previousFootageIds], safe_zone:$('safeZoneCheck').checked};
+    previous_footage_ids:[...state.previousFootageIds],previous_music_path:state.previousMusicPath, safe_zone:$('safeZoneCheck').checked};
 }
 function changedSettings(snapshot) {
   return Object.fromEntries(Object.entries(snapshot).filter(([key,value])=>
-    !['background_video_directory','previous_footage_ids'].includes(key) && JSON.stringify(value)!==JSON.stringify(lastSavedSettings[key])));
+    !['background_video_directory','previous_footage_ids','previous_music_path'].includes(key) && JSON.stringify(value)!==JSON.stringify(lastSavedSettings[key])));
 }
 function queueSave() {
   if(!state.ready)return;
@@ -71,21 +74,32 @@ function status(message, error=false) {
   $('playbackStatus').classList.toggle('error', error);
 }
 function showStatic() {
+  draft?.pause();
   player.pause();
   player.style.display = 'none';
   canvas.style.display = 'block';
   $('btnTogglePlayVideo').textContent = '▶ Phát toàn bộ reel';
 }
-function invalidate() {
+function invalidate(options={}) {
   if (!state.ready) return;
   const quote=$('quoteInput').value.normalize('NFC').trim().split(/\s+/).join(' ');
+  const content=$('quoteInput').value.normalize('NFC');
+  const structureChanged=state.preferencesContent!==undefined&&(state.preferencesContent!==content||state.preferencePagination!==state.settings.auto_paginate);
+  if(structureChanged)
+    state.settings.scene_video_preferences={};
+  state.preferencesContent=content;state.preferencePagination=state.settings.auto_paginate;
+  if(structureChanged){state.currentQuoteIndex=state.quotes.findIndex(q=>quoteIdentity(q.quote)===quoteIdentity(content));populateQuotes();}
   if(quote!==state.contextQuote) {
     const previous=state.lastAcceptedPlan;
     if(previous && previous.quote.trim().split(/\s+/).join(' ')!==quote)
       state.previousFootageIds=[...new Set(previous.scenes.map(scene=>scene.footage_id))];
     state.contextQuote=quote;
+    state.previousMusicPath=state.lastAcceptedPlan?.music?.path||'';
+    state.settings.music_seed=crypto.randomUUID();
   }
   state.revision++;
+  draft?.clear(true);
+  if(draft)draft.operationStartedAt=performance.now();
   state.plan = null;
   state.planPromise = null;
   state.loadedPlan = null;
@@ -95,12 +109,13 @@ function invalidate() {
   state.preparedPreviewPlan = null;
   clearTimeout(warmPreviewTimer);
   state.lastRenderedUrl = null;
-  state.selectedScene = 0;
+  if(!options.preserveScene){if(structureChanged)state.selectedScene = 0;state.pendingScenePlayback=null;}
   $('btnWatchRendered').style.display = 'none';
   showStatic();
-  status('Đang cập nhật cảnh và chuẩn bị xem trước ở nền…');
+  status('Đang cập nhật cảnh cho nháp tức thì…');
   clearTimeout(planTimer);
   planTimer = setTimeout(() => ensurePlan().catch(error => status(error.message, true)), 350);
+  updateDownloadStatus();
   queueSave();
 }
 async function ensurePlan() {
@@ -111,11 +126,20 @@ async function ensurePlan() {
     if (revision !== state.revision) throw new Error('Thiết lập vừa thay đổi. Hãy bấm Play lại sau khi cập nhật.');
     state.plan = plan;
     state.lastAcceptedPlan=plan;
+    $('currentMusicName').textContent=`Nhạc Reel: ${plan.music_details?.name||'Tắt nhạc'}`+(plan.music_details?.reason?' · '+plan.music_details.reason:'');
     state.selectedScene = Math.min(state.selectedScene, plan.scenes.length - 1);
     renderScenes();
     drawStill();
     status(`${plan.scenes.length} cảnh · ${timeLabel(plan.duration)}. Đang chuẩn bị để xem nhanh.`);
-    scheduleWarmPreview(plan);
+    $('draftSeek').max=plan.duration;
+    populateVideos();
+    if(draft) {
+      draft.setPlan(plan,state.selectedScene);
+      if(state.pendingScenePlayback!==null) {
+        const index=Math.min(state.pendingScenePlayback,plan.scenes.length-1);state.pendingScenePlayback=null;
+        draft.play(index);
+      }
+    }
     return plan;
   }).finally(() => {if (revision === state.revision) state.planPromise = null;});
   state.planPromise = promise;
@@ -128,16 +152,17 @@ function renderScenes() {
   $('paginationBadge').textContent = `${plan.scenes.length} cảnh${plan.segmentation_mode === 'manual_lines' ? ' theo dòng' : ''} · ${timeLabel(plan.duration)}`;
   $('totalDuration').textContent = `Tổng reel: ${timeLabel(plan.duration)} · tối thiểu ${state.settings.duration}s`;
   $('previewStyleName').textContent = THEME_NAMES[state.settings.theme_index];
-  const first=plan.scenes[0],pool=plan.footage_pool;
-  if(pool)$('currentVideoName').textContent=`Cảnh đầu: ${first.video_name} · ${pool.remaining}/${pool.total} clip chưa dùng ở lượt này.`+(pool.preferred_replaced?' Clip đã chọn được đổi theo lượt footage chống trùng.':'');
+  const pool=plan.footage_pool;
   if(pool && (pool.fallback_scenes?.length || pool.repeated_scenes?.length))
     $('currentVideoName').textContent+=' Kho không đủ clip mới: đã quay vòng sau khi hết lựa chọn phù hợp.';
+  const sceneScroll=$('sceneList').scrollTop;
   $('sceneList').replaceChildren();
   $('slideTabs').replaceChildren();
   plan.scenes.forEach((scene, index) => {
     const tab = document.createElement('button');
     tab.className = 'slide-tab' + (index === state.selectedScene ? ' active' : '');
     tab.textContent = `Cảnh ${index + 1} · ${timeLabel(scene.text_start)}–${timeLabel(scene.text_end)}`;
+    tab.dataset.scene=index;
     tab.onclick = () => seekScene(index);
     $('slideTabs').append(tab);
     const item = document.createElement('button');
@@ -149,43 +174,59 @@ function renderScenes() {
     if(pool?.fallback_scenes?.includes(index)||pool?.repeated_scenes?.includes(index))meta.textContent+=' · ↻ Quay vòng do hết clip mới';
     const text = document.createElement('span');
     text.textContent = scene.text;
-    item.append(meta, text);
+    const image=document.createElement('img');image.src=scene.thumb_url;image.alt=scene.video_name;image.loading='lazy';
+    const content=document.createElement('span');content.className='scene-card-content';content.append(meta,text);
+    item.append(image,content);
     item.onclick = () => seekScene(index);
     $('sceneList').append(item);
   });
+  $('sceneList').scrollTop=sceneScroll;
   updateSceneLabels();
 }
 function updateSceneLabels() {
   if (!state.plan) return;
   const index = state.selectedScene, scene = state.plan.scenes[index];
+  $('footageTargetLabel').textContent=`Chọn footage cho cảnh ${index+1}`;
+  const suggestion=scene.suggestion;
+  $('currentVideoName').textContent=`Cảnh ${index+1}: ${scene.video_name}`+(suggestion?.requested_path&&!suggestion.accepted?` · Gợi ý được thay thế: ${suggestion.reason}.`:'');
   $('previewSlideIndicator').textContent = `Cảnh ${index + 1} / ${state.plan.scenes.length}`;
   $('slidePreviewText').textContent = scene.text;
   $('aiRecommendText').textContent = `Cảnh ${index + 1}: ${scene.video_name} · chữ ${scene.resolved_pos === 'top' ? 'nửa trên' : scene.resolved_pos === 'center' ? 'chính giữa' : 'nửa dưới'}. Kiểm tra lại vị trí nếu chủ thể di chuyển.`;
   $('posBadge').textContent = state.settings.pos_mode === 'auto' ? 'Tự động theo từng cảnh' : 'Vị trí thủ công';
   document.querySelectorAll('.scene-card, .slide-tab').forEach(element => {
-    const list = [...element.parentElement.children];
-    element.classList.toggle('active', list.indexOf(element) === index);
+    element.classList.toggle('active', Number(element.dataset.scene) === index);
   });
 }
 function seekScene(index) {
+  if(!state.plan)return;
   state.selectedScene = index;
   updateSceneLabels();
+  populateVideos();
   if (state.loadedPlan === state.plan?.plan_id && player.src && player.readyState >= 1) {
     player.currentTime = state.plan.scenes[index].text_start + .25;
     player.style.display = 'block';
     canvas.style.display = 'none';
-  } else drawStill();
+  } else {showStatic();drawStill();draft?.seek(state.plan.scenes[index].text_start+.21);}
 }
 async function loadImage(url) {
   return new Promise((resolve,reject) => {const im = new Image(); im.onload=()=>resolve(im); im.onerror=()=>reject(new Error('Không tải được ảnh xem trước.')); im.src=url;});
+}
+function loadOverlay(plan,index) {
+  const key=plan.scenes[index].overlay_key||`${plan.plan_id}_${index}`;
+  if(!overlayImages.has(key)) {
+    const promise=loadImage(`/api/overlay/${plan.plan_id}/${index}`).catch(error=>{overlayImages.delete(key);throw error;});
+    overlayImages.set(key,promise);
+    if(overlayImages.size>120)overlayImages.delete(overlayImages.keys().next().value);
+  }
+  return overlayImages.get(key);
 }
 async function drawStill() {
   const plan = state.plan, index = state.selectedScene;
   if (!plan) return;
   try {
     const scene = plan.scenes[index];
-    const [background, overlay] = await Promise.all([loadImage(scene.thumb_url),loadImage(`/api/overlay/${plan.plan_id}/${index}`)]);
-    if (state.plan !== plan || state.selectedScene !== index || player.style.display !== 'none') return;
+    const [background, overlay] = await Promise.all([loadImage(scene.thumb_url),loadOverlay(plan,index)]);
+    if (state.plan !== plan || state.selectedScene !== index || player.style.display !== 'none' || draft?.hasFrame&&draft.plan===plan) return;
     ctx.clearRect(0,0,1080,1920);
     const scale = Math.max(1080/background.width,1920/background.height);
     const w=background.width*scale,h=background.height*scale;
@@ -199,7 +240,7 @@ function populateQuotes() {
     const draft=document.createElement('option');draft.value='';draft.textContent='Bản nháp hiện tại (giữ nguyên nội dung)';
     $('quoteSelect').append(draft);
   }
-  state.quotes.forEach((q,index)=>{const option=document.createElement('option');option.value=index;option.textContent=`Câu ${index+1}: ${q.quote.substring(0,55)}…`;$('quoteSelect').append(option);});
+  state.quotes.forEach((q,index)=>{const option=document.createElement('option');option.value=index;option.textContent=`${q.downloaded?'✓ Đã tải':'○ Chưa tải'} · Câu ${index+1}: ${q.quote.substring(0,55)}…`;$('quoteSelect').append(option);});
   $('quoteSelect').value=state.currentQuoteIndex<0?'':String(state.currentQuoteIndex);
   $('quoteListLabel').textContent=`Chọn câu từ danh sách (${state.quotes.length} câu):`;
   updateQuoteCounter();
@@ -213,6 +254,22 @@ function populateQuotes() {
 function updateQuoteCounter() {
   $('quoteCounter').textContent=state.currentQuoteIndex<0?`Bản nháp · ${state.quotes.length} câu`:`Câu ${state.currentQuoteIndex+1} / ${state.quotes.length}`;
 }
+function downloadIdentity(text) {return String(text||'').normalize('NFC').trim().split(/\s+/).join(' ');}
+function updateDownloadStatus() {
+  const identity=downloadIdentity($('quoteInput').value);
+  const record=state.downloadRecords.find(item=>downloadIdentity(item.quote)===identity);
+  const badge=$('quoteDownloadStatus');
+  badge.textContent=record?'✓ ĐÃ TẢI VIDEO':'○ CHƯA TẢI VIDEO';badge.classList.toggle('downloaded',!!record);
+  $('quoteDownloadDetail').textContent=record?`Lần tải gần nhất: ${new Date(record.last_downloaded_at*1000).toLocaleString('vi-VN')} · ${record.count} lần`:'Chỉ đánh dấu sau khi nút Tải video lưu file thành công.';
+  const remaining=state.quotes.filter(q=>!q.downloaded).length;
+  $('quoteDownloadSummary').textContent=`${state.quotes.length-remaining} đã tải · ${remaining} chưa tải`+(state.quotes.length&&!remaining?' · Tất cả câu trong danh sách đã tải.':'');
+  $('btnNextUndownloaded').disabled=!remaining;
+}
+function nextUndownloaded() {
+  const next=state.quotes.findIndex((q,i)=>!q.downloaded&&i>state.currentQuoteIndex);
+  const index=next>=0?next:state.quotes.findIndex(q=>!q.downloaded);
+  if(index>=0)loadQuote(index);
+}
 function quoteIdentity(text) {
   return text.normalize('NFC').replace(/\r\n?/g,'\n').trim();
 }
@@ -220,11 +277,17 @@ function applyQuoteCatalog(catalog) {
   const previous=state.quotes[state.currentQuoteIndex];
   const draft=$('quoteInput').value;
   state.quotes=catalog.quotes;
+  if(catalog.download_history){state.downloadRecords=catalog.download_history.records;state.downloadRevision=catalog.download_history.revision;}
   let index=previous?.key?state.quotes.findIndex(q=>q.key===previous.key):-1;
   if(index<0)index=state.quotes.findIndex(q=>quoteIdentity(q.quote)===quoteIdentity(draft));
   state.currentQuoteIndex=index;
   state.quoteCatalogRevision=catalog.sync.revision;
   populateQuotes();actionAvailability();
+  updateDownloadStatus();
+  if(state.startupAwaitingSheet&&catalog.sync.source==='sheet') {
+    state.startupAwaitingSheet=false;
+    const first=state.quotes.findIndex(q=>!q.downloaded);if(first>=0)loadQuote(first);
+  }
   // Do not loadQuote/invalidate/autosave here: the user's draft, plan and jobs stay intact.
   renderQuoteSync(catalog.sync);
 }
@@ -242,7 +305,7 @@ async function refreshQuoteCatalog() {
   state.busyQuoteRefresh=true;
   try {
     const sync=await api('/api/quote_sync');
-    if(sync.revision!==state.quoteCatalogRevision)applyQuoteCatalog(await api('/api/quote_catalog'));
+    if(sync.revision!==state.quoteCatalogRevision||(sync.download_revision!==undefined&&sync.download_revision!==state.downloadRevision))applyQuoteCatalog(await api('/api/quote_catalog'));
     else renderQuoteSync(sync);
   } catch(error) {$('quoteSyncStatus').textContent='Chưa kiểm tra được danh sách: '+error.message;}
   finally {state.busyQuoteRefresh=false;}
@@ -258,22 +321,70 @@ function loadQuote(index) {
   $('quoteSelect').value=state.currentQuoteIndex;
   updateQuoteCounter();
   $('quoteInput').value=state.quotes[state.currentQuoteIndex].quote.normalize('NFC');
+  updateDownloadStatus();
   invalidate();
 }
 function populateVideos() {
+  const scroll=$('videoCarousel').scrollLeft;
   $('videoCarousel').replaceChildren();
-  state.videos.forEach(video=>{
-    const card=document.createElement('button');card.className='video-card'+(state.currentVideo?.path===video.path?' active':'');
+  const options=state.plan?.footage_pool?.scene_choices?.[state.selectedScene]||[];
+  const current=state.plan?.scenes?.[state.selectedScene]?.video_path;
+  const query=($('footageSearch')?.value||'').toLocaleLowerCase('vi');
+  const suitable=$('footageFilter')?.value==='suitable';
+  const records=state.videos.map(video=>({video,option:options.find(o=>o.path===video.path)}))
+    .filter(({video,option})=>video.name.toLocaleLowerCase('vi').includes(query)&&(!suitable||option?.eligible))
+    .sort((a,b)=>Number(!!b.option?.eligible)-Number(!!a.option?.eligible)||(a.option?.effective_count||0)-(b.option?.effective_count||0)||a.video.name.localeCompare(b.video.name));
+  records.forEach(({video,option})=>{
+    const card=document.createElement('button');card.className='video-card'+(current===video.path?' active':'');
+    card.title=option?`${option.effective_count} lượt hiệu dụng · ${option.eligible?'Phù hợp cảnh này':option.reason}`:video.name;
     const img=document.createElement('img');img.src=video.thumb_url;img.alt=video.name;img.loading='lazy';
     const badge=document.createElement('span');badge.className='video-card-badge';badge.textContent=video.name;
-    card.append(img,badge);card.onclick=()=>selectVideo(video);$('videoCarousel').append(card);
+    const info=document.createElement('span');info.className='footage-usage';info.textContent=option?`${option.effective_count} lượt · ${option.eligible?'Phù hợp':option.reason}`:'';
+    card.append(img,badge,info);card.onclick=()=>selectVideo(video);$('videoCarousel').append(card);
   });
+  $('videoCarousel').scrollLeft=scroll;
   $('videoCountBadge').textContent=`${state.videos.length} clip`;
 }
+function populateMusic() {
+  const select=$('musicSelect');select.replaceChildren();
+  for(const [value,label] of [['random','🎲 Ngẫu nhiên theo Reel'],['bell','Chuông thiền'],['none','Tắt nhạc']]){
+    const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);
+  }
+  const query=($('musicSearch').value||'').toLocaleLowerCase('vi');
+  state.musicTracks.filter(track=>track.name.toLocaleLowerCase('vi').includes(query)||track.path===state.settings.music_path).forEach(track=>{
+    const option=document.createElement('option');option.value='track:'+track.id;option.textContent=track.name;select.append(option);
+  });
+  const chosen=state.musicTracks.find(t=>t.path===state.settings.music_path);
+  select.value=state.settings.music_mode==='selected'&&chosen?'track:'+chosen.id:state.settings.music_mode;
+}
+async function refreshMusicLibrary() {
+  try {
+    const catalog=await api('/api/music');state.musicTracks=catalog.tracks;
+    $('musicDirectory').textContent=catalog.directory;populateMusic();
+    const download=catalog.download;
+    $('musicLibraryStatus').textContent=download.running?`Đang tải nhạc offline: ${download.done}/${download.total||'…'} bài · ${state.musicTracks.length} bài sẵn sàng.`:
+      `${state.musicTracks.length} bài offline.`+(download.errors.length?` ${download.errors.length} bài chưa tải được; bấm Tải/bổ sung để thử lại.`:' Dùng lại ngay cả khi không có Internet.');
+    $('btnDownloadMusic').disabled=download.running;
+    clearTimeout(state.musicPollTimer);
+    if(download.running)state.musicPollTimer=setTimeout(refreshMusicLibrary,1500);
+  } catch(error){$('musicLibraryStatus').textContent='Không đọc được kho nhạc: '+error.message;}
+}
 function selectVideo(video) {
+  draft?.unlockAudio();
+  const legacy=state.currentVideo;
   state.currentVideo=video;
-  $('currentVideoName').textContent=`Cảnh đầu: ${video.name} (${timeLabel(video.duration)}). Cảnh sau tự chọn clip khác.`;
-  populateVideos();invalidate();
+  const text=$('quoteInput').value.normalize('NFC').split(/\r?\n/).filter(line=>line.trim()).map(line=>line.trim().split(/\s+/).join(' ')).join('\n');
+  const previous=state.lastAcceptedPlan;
+  const base=state.plan||(previous?.quote===text&&previous.settings?.auto_paginate===state.settings.auto_paginate?previous:null);
+  const index=state.selectedScene,scene=base?.scenes[index];
+  if(scene) {
+    state.settings.scene_video_preferences={...state.settings.scene_video_preferences,[index]:{path:video.path,text:scene.text}};
+    // The old video_path preference only applies to scene zero.
+    state.currentVideo=index===0?video:legacy;
+    state.pendingScenePlayback=index;
+  }
+  populateVideos();invalidate({preserveScene:true});
+  if(state.ready){clearTimeout(planTimer);const revision=state.revision;ensurePlan().catch(error=>{if(revision===state.revision)status(error.message,true);});}
 }
 function actionAvailability() {
   const blocked=state.busyExport||state.busyBatch||state.busyLibrary||!state.inventoryReady;
@@ -299,13 +410,17 @@ async function refreshLibrary(mode='refresh') {
       const result=await api('/api/select_video_directory',{use_default:mode==='default'});
       if(result.cancelled){$('libraryStatus').textContent='Đã hủy chọn folder; giữ nguyên kho hiện tại.';return;}
       state.settings.background_video_directory=result.directory;
+      state.settings.music_mode=result.settings?.music_mode||state.settings.music_mode;
+      state.settings.music_path=result.settings?.music_path||'';
       videos=result.videos;
     }
     state.videos=videos;state.inventoryReady=videos.length>0;
+    if(mode!=='refresh'){state.settings.scene_video_preferences={};state.settings.imported_video_paths=[];}
     state.currentVideo=mode==='refresh'?videos.find(v=>v.path===state.currentVideo?.path)||videos[0]||null:videos[0]||null;
     $('backgroundDirectory').textContent=state.settings.background_video_directory||'Kho mặc định · CLIP TƯỢNG PHẬT LQ + assets/imports';
     $('libraryStatus').textContent=videos.length?`Đã đọc ${videos.length} clip; folder được tự nhớ, bao gồm thư mục con.`:'Kho video trống. Hãy chọn folder hoặc thêm video.';
     populateVideos();invalidate();
+    await refreshMusicLibrary();
   } catch(error) {
     // A cancelled/invalid new choice leaves the old library intact. A failed rescan is unavailable.
     if(mode==='refresh'){state.videos=[];state.currentVideo=null;state.inventoryReady=false;populateVideos();invalidate();}
@@ -354,36 +469,6 @@ async function pollJob(job, progress, interval=650) {
   if(job.status==='error') {const error=new Error(job.error);error.code=job.code;throw error;}
   return job.result;
 }
-function scheduleWarmPreview(plan) {
-  clearTimeout(warmPreviewTimer);
-  const revision=state.revision;
-  warmPreviewTimer=setTimeout(()=>{
-    if(state.plan?.plan_id!==plan.plan_id||state.revision!==revision||state.busyExport||state.busyBatch)return;
-    preparePreview(plan,revision).catch(error=>{
-      if(state.revision===revision&&!state.busyPreview)status('Bấm Phát để thử chuẩn bị lại: '+error.message,true);
-    });
-  },900);
-}
-function preparePreview(plan,revision=state.revision) {
-  if(state.preparedPreviewPlan===plan.plan_id&&state.previewUrl)return Promise.resolve({url:state.previewUrl});
-  if(state.previewRequest?.planId===plan.plan_id&&state.previewRequest.revision===revision)return state.previewRequest.promise;
-  const request={planId:plan.plan_id,revision};
-  request.promise=(async()=>{
-    const result=await pollJob(await api('/api/preview',{plan_id:plan.plan_id,preview_client_id:saveClientId}),job=>{
-      if(state.revision===revision&&state.busyPreview)status(`Đang chuẩn bị xem · ${job.progress}%`);
-    },250);
-    if(state.revision===revision&&state.plan?.plan_id===plan.plan_id) {
-      state.previewUrl=result.url;state.preparedPreviewPlan=plan.plan_id;
-      if(!state.busyPreview&&!state.loadedKind) {
-        player.preload='auto';player.src=result.url;player.load();
-        status(`Sẵn sàng xem · ${plan.scenes.length} cảnh · ${timeLabel(plan.duration)}. Bấm Phát để xem ngay.`);
-      }
-    }
-    return result;
-  })().catch(error=>{if(state.previewRequest===request)state.previewRequest=null;throw error;});
-  state.previewRequest=request;
-  return request.promise;
-}
 async function playUrl(url, kind, plan) {
   if(state.loadedPlan!==plan.plan_id || state.loadedKind!==kind || player.getAttribute('src')!==url) {
     player.src=url;
@@ -401,24 +486,28 @@ async function playUrl(url, kind, plan) {
   try {await player.play();} catch {status('Video đã sẵn sàng. Bấm nút phát trên video để bắt đầu.');}
 }
 async function togglePlayback() {
-  if(state.busyPreview) return;
-  if(state.loadedPlan===state.plan?.plan_id && !player.paused) {player.pause();return;}
-  const button=$('btnTogglePlayVideo');
-  state.busyPreview=true;button.disabled=true;
+  if(draft?.running&&draft.mode==='reel'){draft.pause();return;}
   try {
-    const plan=await ensurePlan(), revision=state.revision;
-    if(state.loadedPlan===plan.plan_id && state.loadedKind) {
-      await playUrl(state.loadedKind === 'export' ? state.lastRenderedUrl : state.previewUrl,state.loadedKind,plan);return;
-    }
-    clearTimeout(warmPreviewTimer);
-    status('Đang mở bản xem trước…');
-    const result=await preparePreview(plan,revision);
-    if(revision!==state.revision) {status('Thiết lập đã đổi. Bấm Play để dựng bản mới.');return;}
-    state.previewUrl=result.url;
-    await playUrl(result.url,'preview',plan);
-    status(`Đang xem toàn bộ reel · ${plan.scenes.length} cảnh · ${timeLabel(plan.duration)}`);
-  } catch(error) {status(error.message,true);}
-  finally {state.busyPreview=false;button.disabled=false;button.textContent=player.paused?'▶ Phát toàn bộ reel':'⏸ Tạm dừng reel';}
+    draft?.unlockAudio();
+    const plan=await ensurePlan();showStatic();
+    if(draft.plan!==plan||draft.media.some(item=>item.status==='error'))draft.setPlan(plan,state.selectedScene);
+    if(draft.mode!=='reel')draft.time=0;
+    await draft.play();
+  } catch(error){status(error.message,true);}
+}
+function createDraftPlayer() {
+  draft=new DraftPlayer({canvas,request:api,loadOverlay,onStatus:status,
+    onTime:(time,index)=>{
+      $('playbackTime').textContent=`${timeLabel(time)} / ${timeLabel(state.plan?.duration||0)}`;
+      $('draftSeek').value=time;
+      if(index!==state.selectedScene){state.selectedScene=index;updateSceneLabels();populateVideos();}
+    },
+    onState:running=>{$('btnTogglePlayVideo').textContent=running?'⏸ Tạm dừng nháp':'▶ Phát toàn Reel';}
+  });
+  $('btnPlayScene').onclick=async()=>{
+    draft.unlockAudio();try {await ensurePlan();showStatic();draft.play(state.selectedScene);}catch(error){status(error.message,true);}
+  };
+  $('draftSeek').oninput=()=>{showStatic();draft.seek(Number($('draftSeek').value));};
 }
 function renderProgress(job) {
   $('progressBox').classList.add('active');$('progressBarFill').style.width=job.progress+'%';
@@ -440,7 +529,7 @@ async function renderSnapshot(snapshot,revision) {
   }
   for(let attempt=0;attempt<2;attempt++) {
     const plan=await api('/api/plan',snapshot);
-    if(revision===state.revision) {state.plan=plan;state.lastAcceptedPlan=plan;state.selectedScene=0;renderScenes();drawStill();}
+    if(revision===state.revision) {state.plan=plan;state.lastAcceptedPlan=plan;state.selectedScene=Math.min(state.selectedScene,plan.scenes.length-1);renderScenes();populateVideos();drawStill();draft?.setPlan(plan,state.selectedScene);}
     try {
       const job=await api('/api/render',{plan_id:plan.plan_id,async:true});
       const result=await pollJob(job,renderProgress);
@@ -465,7 +554,8 @@ async function downloadVideo() {
     }
     if(!exported)exported=await renderSnapshot(snapshot,revision);
     const result=await pollJob(await api('/api/save_video',{save_token:selection.save_token,render_job_id:exported.jobId}),renderProgress);
-    $('progressStatus').textContent=`Đã lưu video: ${result.saved_path}`;
+    $('progressStatus').textContent=`Đã lưu video: ${result.saved_path}`+(result.history_warning?' · '+result.history_warning:'');
+    try {applyQuoteCatalog(await api('/api/quote_catalog'));}catch(error){$('quoteDownloadDetail').textContent='Video đã lưu; chưa cập nhật được trạng thái: '+error.message;}
   } catch(error) {exportError(error);}
   finally {exportBusy(false);}
 }
@@ -484,13 +574,21 @@ async function initApp() {
   showStatic();status('Đang đọc nội dung và kho clip…');
   try {
     let libraryError='';
-    const [catalog,videos,settings]=await Promise.all([api('/api/quote_catalog'),api('/api/videos').catch(error=>{libraryError=error.message;return [];}),api('/api/settings')]);
+    const [startup,videos,settings]=await Promise.all([api('/api/startup_quote',{}),api('/api/videos').catch(error=>{libraryError=error.message;return [];}),api('/api/settings')]);
+    const catalog=startup.catalog;
     const quotes=catalog.quotes;
     state.quotes=quotes;state.quoteCatalogRevision=catalog.sync.revision;state.videos=videos;state.settings=settings;lastSavedSettings=JSON.parse(JSON.stringify(settings));
     $('creditInput').value=settings.credit;
-    populateQuotes();loadQuote(Math.min(settings.quote_index||0,Math.max(0,quotes.length-1)));
-    if(settings.quote!==null && typeof settings.quote==='string')$('quoteInput').value=settings.quote;
-    if(settings.quote!==null||!quotes.length)state.currentQuoteIndex=quotes.findIndex(q=>quoteIdentity(q.quote)===quoteIdentity($('quoteInput').value));
+    await refreshMusicLibrary();
+    state.downloadRecords=catalog.download_history.records;state.downloadRevision=catalog.download_history.revision;
+    populateQuotes();
+    if(startup.index>=0){
+      loadQuote(startup.index);
+      if(quoteIdentity(settings.quote||'')!==quoteIdentity(quotes[startup.index].quote))state.settings.scene_video_preferences={};
+      if(quoteIdentity(settings.quote||'')!==quoteIdentity(quotes[startup.index].quote))state.settings.music_seed=crypto.randomUUID();
+    } else {$('quoteInput').value=settings.quote||'';state.currentQuoteIndex=-1;}
+    state.startupAwaitingSheet=catalog.sync.enabled&&catalog.sync.source!=='sheet';
+    $('btnRestoreDraft').hidden=!startup.recovery_available;updateDownloadStatus();
     populateQuotes();renderQuoteSync(catalog.sync);
     if(videos.length) selectVideo(videos.find(v=>v.path===settings.video_path)||videos[0]);
     else populateVideos();
@@ -507,19 +605,44 @@ async function initApp() {
     $('btnPrevQuote').onclick=()=>loadQuote(state.currentQuoteIndex<0?-1:state.currentQuoteIndex-1);
     $('btnNextQuote').onclick=()=>loadQuote(state.currentQuoteIndex+1);
     $('btnRandQuote').onclick=()=>loadQuote(Math.floor(Math.random()*state.quotes.length));
+    $('btnNextUndownloaded').onclick=nextUndownloaded;
+    $('btnRestoreDraft').onclick=restorePreviousDraft;
     $('quoteInput').oninput=invalidate;$('creditInput').oninput=invalidate;
     $('btnSyncQuotes').onclick=syncQuotesNow;
+    $('musicSearch').oninput=populateMusic;
+    $('musicSelect').onchange=()=>{
+      const value=$('musicSelect').value,track=state.musicTracks.find(t=>'track:'+t.id===value);
+      state.settings.music_mode=track?'selected':value;state.settings.music_path=track?.path||'';
+      invalidate({preserveScene:true});
+    };
+    $('btnRandomMusic').onclick=()=>{
+      state.previousMusicPath=state.plan?.music?.path||'';state.settings.music_seed=crypto.randomUUID();
+      state.settings.music_mode='random';state.settings.music_path='';populateMusic();invalidate({preserveScene:true});
+    };
+    const musicSample=new Audio();
+    $('btnListenMusic').onclick=async()=>{
+      try {
+        if(!musicSample.paused){musicSample.pause();$('btnListenMusic').textContent='▶ Nghe nhạc';return;}
+        const plan=await ensurePlan();if(!plan.music_url){status('Reel đang tắt nhạc.');return;}
+        draft?.pause();musicSample.src=plan.music_url;musicSample.volume=state.settings.music_volume;
+        await musicSample.play();$('btnListenMusic').textContent='⏸ Dừng nghe';
+      } catch(error){status(error.message,true);}
+    };
+    musicSample.onended=()=>{$('btnListenMusic').textContent='▶ Nghe nhạc';};
+    document.querySelector('main').addEventListener('pointerdown',event=>{if(!event.target.closest('#btnListenMusic')){musicSample.pause();$('btnListenMusic').textContent='▶ Nghe nhạc';}},true);
+    $('btnDownloadMusic').onclick=async()=>{try {await api('/api/download_music',{});await refreshMusicLibrary();}catch(error){$('musicLibraryStatus').textContent=error.message;}};
+    $('btnOpenMusicFolder').onclick=()=>api('/api/open_music_folder',{}).catch(error=>status(error.message,true));
     $('btnRandomVideo').onclick=()=>{if(state.videos.length)selectVideo(state.videos[Math.floor(Math.random()*state.videos.length)]);};
     document.querySelector('label[for="uploadVideoInput"]').onclick=async event=>{
       event.preventDefault();
-      try {const result=await api('/api/select_video',{});if(result.video){if(!state.videos.some(v=>v.path===result.video.path))state.videos.push(result.video);state.inventoryReady=true;actionAvailability();selectVideo(result.video);}}
+      try {const result=await api('/api/select_video',{});if(result.video){if(!state.videos.some(v=>v.path===result.video.path))state.videos.push(result.video);state.settings.imported_video_paths=[...new Set([...(state.settings.imported_video_paths||[]),result.video.path])];state.inventoryReady=true;actionAvailability();selectVideo(result.video);}}
       catch(error){status(error.message,true);}
     };
     $('safeZoneCheck').onchange=()=>{$('safeZoneOverlay').classList.toggle('visible',$('safeZoneCheck').checked);queueSave();};
     const sample=new Audio('/assets/thien_chuong.wav');
     $('btnTestAudio').onclick=()=>{sample.volume=state.settings.music_volume;sample.currentTime=0;sample.play().catch(error=>status(error.message,true));};
     $('btnTogglePlayVideo').onclick=togglePlayback;
-    $('btnWatchRendered').onclick=()=>{if(state.lastRenderedUrl&&state.plan)playUrl(state.lastRenderedUrl,'export',state.plan).catch(error=>status(error.message,true));};
+    $('btnWatchRendered').onclick=()=>{draft?.pause();if(state.lastRenderedUrl&&state.plan)playUrl(state.lastRenderedUrl,'export',state.plan).catch(error=>status(error.message,true));};
     $('btnOpenFolder').onclick=()=>api('/api/open_folder',{}).catch(error=>status(error.message,true));
     $('btnDownloadVideo').onclick=downloadVideo;
     $('btnBatchRender').onclick=()=>{if(!state.busyBatch)populateQuotes();$('batchModal').classList.add('active');};
@@ -534,7 +657,17 @@ async function initApp() {
       if(i>=0&&i!==state.selectedScene){state.selectedScene=i;updateSceneLabels();}
       $('playbackTime').textContent=`${timeLabel(player.currentTime)} / ${timeLabel(state.plan.duration)}`;
     };
+    createDraftPlayer();
+    $('footageSearch').oninput=populateVideos;$('footageFilter').onchange=populateVideos;
+    $('btnResetSceneVideo').onclick=()=>{
+      const index=state.selectedScene;delete state.settings.scene_video_preferences[index];
+      if(index===0)state.currentVideo=null;
+      state.pendingScenePlayback=index;invalidate({preserveScene:true});
+    };
+    state.preferencesContent=$('quoteInput').value.normalize('NFC');state.preferencePagination=state.settings.auto_paginate;
     state.ready=true;
+    document.querySelector('main').addEventListener('pointerdown',()=>{state.startupAwaitingSheet=false;},true);
+    document.querySelector('main').addEventListener('keydown',()=>{state.startupAwaitingSheet=false;},true);
     state.contextQuote=$('quoteInput').value.normalize('NFC').trim().split(/\s+/).join(' ');
     actionAvailability();
     queueSave();
@@ -544,5 +677,20 @@ async function initApp() {
     else status(libraryError||'Kho video trống. Hãy chọn folder video nền.',true);
   } catch(error) {status(error.message,true);}
 }
+async function restorePreviousDraft() {
+  try {
+    const recovery=await api('/api/previous_draft');const saved=recovery.settings;
+    const {background_video_directory,last_save_directory,...draftSettings}=saved;
+    state.startupAwaitingSheet=false;
+    state.settings={...state.settings,...draftSettings};
+    $('quoteInput').value=saved.quote||'';$('creditInput').value=saved.credit;
+    state.currentQuoteIndex=state.quotes.findIndex(q=>quoteIdentity(q.quote)===quoteIdentity(saved.quote||''));
+    state.preferencesContent=$('quoteInput').value.normalize('NFC');state.preferencePagination=state.settings.auto_paginate;
+    await api('/api/settings',draftSettings);
+    state.videos=await api('/api/videos');state.currentVideo=state.videos.find(v=>v.path===saved.video_path)||null;
+    state.inventoryReady=state.videos.length>0;applySettings();populateQuotes();populateVideos();invalidate();
+    $('saveStatus').textContent='Đã mở lại bản nháp trước khi khởi động.';
+  } catch(error){status(error.message,true);}
+}
 window.addEventListener('DOMContentLoaded',initApp);
-window.addEventListener('pagehide',saveBeforeExit);
+window.addEventListener('pagehide',()=>{draft?.clear();saveBeforeExit();});

@@ -207,6 +207,15 @@ def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', h
     return im
 
 
+def overlay_key(plan, scene):
+    import hashlib, json
+    keys = ('credit','theme_index','vertical_offset','quote_size','credit_size','shade','autofit',
+            'outline_enabled','outline_color','outline_width','outline_blur','outline_opacity')
+    return hashlib.sha256(json.dumps(dict(version=plan['version'],text=scene['text'],pos=scene['resolved_pos'],
+                                          settings={k:plan['settings'][k] for k in keys}),sort_keys=True,
+                                     ensure_ascii=False).encode('utf-8')).hexdigest()[:32]
+
+
 def scene_overlay(plan, scene, workspace_dir):
     s = plan['settings']
     return render_overlay(scene['text'], s['credit'], theme_index=s['theme_index'], pos_mode=scene['resolved_pos'],

@@ -57,5 +57,20 @@ function fixture(){
     assert.equal(f.element('quoteInput').value,draft);assert.equal(f.run('state.quotes.length'),2);
     assert.match(f.element('quoteSyncStatus').textContent,/Không kết nối/);
   }
+  {
+    const f=fixture();f.element('quoteInput').value='  Biết\nơn.  ';
+    f.context.historyCatalog={quotes:[{key:'a',quote:'Biết ơn.',downloaded:true},{key:'b',quote:'Câu mới.',downloaded:false}],
+      sync:{...f.sync,download_revision:2},download_history:{revision:2,records:[{quote:'Biết ơn.',count:1,last_downloaded_at:1000}]}};
+    f.run('applyQuoteCatalog(historyCatalog)');
+    assert.equal(f.element('quoteDownloadStatus').textContent,'✓ ĐÃ TẢI VIDEO');
+    assert.match(f.element('quoteDownloadSummary').textContent,/1 đã tải · 1 chưa tải/);
+    f.element('quoteInput').value='Biết ơn mỗi ngày.';f.run('updateDownloadStatus()');
+    assert.equal(f.element('quoteDownloadStatus').textContent,'○ CHƯA TẢI VIDEO');
+    f.run("state.quoteCatalogRevision='new';state.downloadRevision=1;");
+    const calls=[];f.context.fakeApi=async path=>{calls.push(path);return path==='/api/quote_sync'?{...f.sync,revision:'new',download_revision:2}:f.context.historyCatalog;};
+    f.run('api=(...args)=>fakeApi(...args)');await f.run('refreshQuoteCatalog()');
+    assert.deepEqual(calls,['/api/quote_sync','/api/quote_catalog']);
+    assert.equal(f.element('quoteInput').value,'Biết ơn mỗi ngày.','History refresh never overwrites the edited draft');
+  }
   console.log('Sheet UI: add/edit/delete/reorder/empty preserve draft, plan, export and running batch; errors keep list.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

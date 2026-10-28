@@ -7,6 +7,7 @@ from core.planner import load_plan,build_plan
 from core.renderer import render_plan
 from core.footage_pool import FootagePool,FootageConflict
 from core.persistence import file_mutex
+from core.quote_downloads import QuoteDownloadHistory
 
 
 class JobManager:
@@ -17,6 +18,7 @@ class JobManager:
         self.preview_futures={};self.preview_clients={}
         self.lock=threading.RLock();self.jobs={};self.pending={}
         self.pool=FootagePool(workspace_dir)
+        self.download_history=QuoteDownloadHistory(workspace_dir)
 
     def get(self,job_id):
         with self.lock:
@@ -38,7 +40,7 @@ class JobManager:
             job_id=uuid.uuid4().hex
             target=Path(output_path) if output_path else (self.workspace_dir/'.cache'/'previews'/(plan['plan_id']+'.mp4') if preview else self.workspace_dir/'output_videos'/f'Reel_{job_id[:12]}.mp4')
             if not preview:self.pool.reserve(plan,job_id)
-            self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,message='Đang chuẩn bị xem…' if preview else 'Đang chờ dựng…',plan_id=plan['plan_id'],kind='preview' if preview else 'export')
+            self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,message='Đang chuẩn bị xem…' if preview else 'Đang chờ dựng…',plan_id=plan['plan_id'],quote=plan.get('quote',''),kind='preview' if preview else 'export')
             if preview and target.is_file() and target.stat().st_size:
                 load_plan(plan['plan_id'],self.workspace_dir)
                 result=dict(success=True,duration=plan['duration'],plan_id=plan['plan_id'],elapsed=0,cached=True,
@@ -91,6 +93,10 @@ class JobManager:
         self.preview_executor.shutdown(wait=True)
         self.executor.shutdown(wait=True)
 
+    def export_busy(self):
+        with self.lock:
+            return any(job['status'] in ('queued','running') and job.get('kind')!='preview' for job in self.jobs.values())
+
     def save_video(self, render_job_id, destination):
         source_job = self.get(render_job_id)
         if source_job.get('kind') != 'export' or source_job['status'] != 'done':
@@ -102,7 +108,7 @@ class JobManager:
             raise ValueError('Video xuất không còn tồn tại. Hãy xuất lại video.')
         job_id = uuid.uuid4().hex
         with self.lock:
-            self.jobs[job_id] = dict(job_id=job_id,kind='save',status='queued',progress=0,message='Đang chờ lưu video…',plan_id=source_job['plan_id'])
+            self.jobs[job_id] = dict(job_id=job_id,kind='save',status='queued',progress=0,message='Đang chờ lưu video…',plan_id=source_job['plan_id'],quote=source_job.get('quote',''))
             self.executor.submit(self._save_work, job_id, source, Path(destination))
         return self.get(job_id)
 
@@ -113,11 +119,15 @@ class JobManager:
         with self.lock:self.jobs[job_id]['status']='running'
         try:
             copy_video(source, destination, progress)
-            with self.lock:self.jobs[job_id].update(status='done',progress=100,message='Đã lưu video.',result=dict(success=True,saved_path=str(destination),filename=destination.name))
+            warning=None
+            try:self.download_history.record(self.jobs[job_id].get('quote',''),destination,job_id)
+            except Exception as error:warning='Video đã lưu nhưng chưa ghi nhớ được trạng thái: '+str(error)
+            with self.lock:self.jobs[job_id].update(status='done',progress=100,message=warning or 'Đã lưu video.',result=dict(success=True,saved_path=str(destination),filename=destination.name,history_warning=warning))
         except Exception as error:
             with self.lock:self.jobs[job_id].update(status='error',error=f'Không lưu được video: {error}',message='Lưu video thất bại. Bản Full HD vẫn được giữ trong ứng dụng.')
 
     def batch(self,items,detector=None):
+        items=[{k:v for k,v in item.items() if k not in ('scene_video_preferences','imported_video_paths')} for item in items]
         if detector is None:
             from core.video_detector import VideoDetector
             detector=VideoDetector(self.workspace_dir)
@@ -127,7 +137,7 @@ class JobManager:
         return self.get(job_id)
 
     def _batch_work(self,job_id,items,detector):
-        files,failures=[],[]
+        files,failures=[],[];previous_music=''
         with self.lock:self.jobs[job_id]['status']='running'
         for i,item in enumerate(items):
             token=f'{job_id}_{i}'
@@ -136,6 +146,7 @@ class JobManager:
             try:
                 # Build each batch plan after the previous reel has committed its footage turns.
                 payload={**item['settings'],'quote':item['quote'],'video_path':item['scenes'][0]['video_path']} if 'scenes' in item else item
+                payload={**payload,'previous_music_path':previous_music}
                 with file_mutex(self.workspace_dir/'reel_export.lock',timeout=7200):
                     for attempt in range(3):
                         plan=build_plan(payload,self.workspace_dir,detector)
@@ -148,6 +159,7 @@ class JobManager:
                     target=self.workspace_dir/'output_videos'/f'Batch_{job_id[:8]}_Cau_{i+1:02d}.mp4'
                     render_plan(plan,target,self.workspace_dir,progress_callback=report)
                     self.pool.finish(token,True)
+                    previous_music=(plan.get('music') or {}).get('path','')
                 files.append(target.name)
             except Exception as error:
                 self.pool.finish(token,False)

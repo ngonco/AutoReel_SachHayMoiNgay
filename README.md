@@ -1,16 +1,16 @@
 # Auto Reel Sách Hay Mỗi Ngày
 
-Ứng dụng Windows dựng reel dọc với câu nói tiếng Việt, video tượng Phật, năm template và nhạc chuông thiền.
+Ứng dụng Windows dựng reel dọc với câu nói tiếng Việt, video tượng Phật, năm template và kho nhạc nền offline.
 
 - Câu dài tự chia thành nhiều cảnh, giữ đủ nội dung và dấu câu.
 - Mỗi cảnh dùng một clip khác; clip ngắn được làm chậm vừa đủ.
-- Preview 360×640 được chuẩn bị ở nền, Play dùng lại bản đã sẵn sàng có đầy đủ chữ, nhạc và chuyển cảnh 0,4 giây.
+- Nháp tức thì phát footage nhẹ và lớp chữ từ renderer, không dựng MP4 toàn Reel sau mỗi lần sửa.
 - Xuất Full HD 1080×1920 từ chính kế hoạch đã xem trước.
 - Tổng thời lượng tự tăng để đủ đọc, tối thiểu theo nút 10/12/15 giây đã chọn.
 
 ## Chạy
 
-Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v9.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
+Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v10.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
 
 Chạy từ mã nguồn trên Windows, Python 3.11:
 
@@ -21,13 +21,13 @@ python -X utf8 app.py
 
 Cần FFmpeg và FFprobe trên PATH khi chạy từ nguồn. Đặt clip trong `CLIP TƯỢNG PHẬT LQ/DỌC` hoặc `CLIP TƯỢNG PHẬT LQ/NGANG`, hoặc chọn **Folder video nền** (bao gồm thư mục con), hoặc bấm **Chọn video khác** để dùng file cục bộ.
 
-Font dùng Times New Roman Bold và Segoe UI có sẵn trong `C:/Windows/Fonts`. Có thể đặt bản font được phép sử dụng trong `assets/fonts`. Repo không chứa các font Microsoft này. Nội dung câu nói đọc từ PMDX/TXT nếu có, nếu không dùng 16 câu có sẵn.
+Font dùng Times New Roman Bold và Segoe UI có sẵn trong `C:/Windows/Fonts`. Có thể đặt bản font được phép sử dụng trong `assets/fonts`. Repo không chứa các font Microsoft này. Nội dung câu nói tự đồng bộ từ Google Sheet công khai; PMDX/TXT hoặc 16 câu có sẵn là nguồn dự phòng khi chưa có bản đồng bộ.
 
 ## Sử dụng
 
-1. Chọn câu nói, clip cho cảnh đầu, template và vị trí chữ. Nhấn Enter trong câu nói để chia mỗi dòng thành một cảnh riêng; dòng trống được bỏ qua.
-2. Kiểm tra **Kịch bản reel**: đầy đủ chữ, clip, thời gian nguồn và tốc độ từng cảnh.
-3. Bấm **Phát toàn bộ reel**. Lần đầu chờ dựng; có thể tạm dừng, tua và phát lại.
+1. App mở vào câu chưa tải đầu tiên. Chọn câu nói, template và vị trí chữ. Nhấn Enter trong câu nói để chia mỗi dòng thành một cảnh riêng; dòng trống được bỏ qua.
+2. Trong **Kịch bản Reel & Video tượng Phật nền**, bấm cảnh rồi chọn footage ngay bên dưới. Tìm theo tên hoặc lọc clip phù hợp; clip gợi ý vẫn tuân thủ chống lặp và ưu tiên ít lượt dùng.
+3. Đổi footage tự phát cảnh vừa đổi. Bấm **Phát toàn Reel** để xem liên tục; có thể dừng, tua và phát lại. Clip mới cần chuẩn bị bản nhẹ một lần, dùng lại sau restart.
 4. Bấm **Tải video**, chọn nơi lưu và tên file. Ứng dụng tự xuất Full HD nếu cần; nếu đã xuất đúng thiết lập trong phiên này thì lưu ngay. Nút **Xuất nhiều Reel** trên thanh đầu xuất toàn bộ danh sách câu; nút Xuất Reel riêng đã bỏ.
 
 Thay đổi thiết lập sẽ làm bản xem trước cũ hết hiệu lực. Cỡ chữ và credit được giới hạn trong vùng an toàn; nếu chủ thể di chuyển, hãy xem lại vị trí chữ trước khi xuất.
@@ -42,7 +42,7 @@ python -X utf8 build_onefile.py
 
 `verify_samples.py` cần kho clip thật và xuất ba mẫu (một, hai, ba cảnh) ở cả bản nhẹ và Full HD. Kết quả ở `output_videos/verification`; ảnh kiểm tra và báo cáo ở `test_renders/verification`.
 
-Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v9.previous.exe`.
+Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v10.previous.exe`.
 
 Bắt buộc sau mỗi đợt sửa code, kể cả giao diện: đóng gói lại EXE từ code cuối cùng, mở qua launcher và kiểm tra chức năng vừa sửa trên bản đóng gói trước khi bàn giao. Không giao EXE cũ sau khi chỉ kiểm tra mã nguồn. Chỉ sửa tài liệu thì không cần build lại.
 
@@ -59,7 +59,7 @@ Sau mỗi đợt sửa hoàn tất: cập nhật tài liệu, chạy kiểm tra 
 
 ### Viền chữ mềm
 
-Trong mục vị trí chữ, bật **Viền chữ mềm** để chữ nổi rõ hơn trên nền. Chỉnh **Độ dày viền**, **Độ nhòe ra ngoài**, **Độ đậm viền** và **Màu viền**; viền nhạt dần ra ngoài, nét chữ vẫn sắc. Mặc định màu tự động theo mẫu; chọn màu riêng sẽ tắt chế độ màu tự động. Viền áp dụng cho câu nói và nguồn, được lưu lại và dùng giống nhau khi xem trước hoặc xuất Full HD. Bấm Play để dựng lại sau khi thay đổi.
+Trong mục vị trí chữ, bật **Viền chữ mềm** để chữ nổi rõ hơn trên nền. Chỉnh **Độ dày viền**, **Độ nhòe ra ngoài**, **Độ đậm viền** và **Màu viền**; viền nhạt dần ra ngoài, nét chữ vẫn sắc. Mặc định màu tự động theo mẫu; chọn màu riêng sẽ tắt chế độ màu tự động. Viền áp dụng cho câu nói và nguồn, được lưu lại và dùng giống nhau khi xem trước hoặc xuất Full HD. Lớp chữ cập nhật trong nháp mà không dựng lại video nền.
 
 ### Tải video về nơi đã chọn
 
@@ -70,7 +70,7 @@ Video tải là MP4 Full HD 1080×1920. Tải lại bản vừa xuất không d�
 
 ### Tự lưu và footage không trùng
 
-Mỗi lần sửa chữ (kể cả xuống dòng), chọn câu/clip hoặc chỉnh thiết kế/âm lượng, ứng dụng tự lưu và báo **Đã lưu tự động**. Khi mở lại sẽ khôi phục nội dung, clip và các cài đặt. V5 lưu trong `session_state.json`, nhập thiết lập cũ lần đầu và giữ riêng để các cửa sổ phiên bản cũ không ghi đè.
+Mỗi lần sửa chữ (kể cả xuống dòng), chọn câu/clip hoặc chỉnh thiết kế/âm lượng, ứng dụng tự lưu và báo **Đã lưu tự động**. V10 giữ các cài đặt và mở vào câu chưa tải đầu tiên; bấm **Mở bản nháp trước** để khôi phục bản soạn trước khi khởi động. V5 lưu trong `session_state.json`, nhập thiết lập cũ lần đầu và giữ riêng để các cửa sổ phiên bản cũ không ghi đè.
 
 V8 tránh toàn bộ footage của câu trước khi đổi câu (kể cả chỉ xem trước trong phiên), ưu tiên clip có ít lượt dùng nhất trong nhóm phù hợp. Khi hết clip mới mới quay lại footage của câu trước; chỉ lặp trong cùng reel sau khi đi hết kho. Cảnh phải quay vòng được ghi rõ trong kịch bản. Kho chọn mới thay kho cũ, nhưng lịch sử số lượt mọi clip vẫn giữ nguyên. Các file sao chép giống hệt nội dung được tính là một footage. Xem trước không tính lượt; xuất lỗi trả lại lượt. Nếu clip đã chọn đã dùng trước các clip còn lại, ứng dụng tự chọn clip chưa dùng và hiển thị trong kịch bản. Lịch sử lưu ở `footage_usage.json`, không đưa lên GitHub; giữ file này nếu muốn tiếp tục vòng footage khi chuyển máy. Quy tắc có hiệu lực với các lần xuất từ v5.
 
@@ -81,7 +81,7 @@ V8 tránh toàn bộ footage của câu trước khi đổi câu (kể cả ch�
 
 Với nội dung một dòng, tự chia theo dấu kết câu và ưu tiên dấu phẩy/từ nối khi hai vế đủ dài, từ nối nằm ở cảnh sau. Nhấn Enter vẫn chủ động đặt mỗi dòng thành một cảnh. Chữ hiển thị tự cân dòng, tránh đuôi một từ hoặc hai từ ngắn và giữ các cụm như “hạnh phúc”, “biết ơn”, “yêu thương” khi khung cho phép. Tắt tự chia để giữ nguyên một cảnh cho nội dung một dòng.
 
-Kiểm tra riêng bản đóng gói: `python -X utf8 verify_v8.py --hold`. Script tạo profile dưới `.cache`, dùng clip màu riêng và không sửa bản nháp/lịch sử/video thật.
+Bài kiểm tra v8 được giữ cho phiên bản lịch sử; bản đóng gói hiện tại dùng `python -X utf8 verify_v10.py --hold --fullhd`. Script tạo profile dưới `.cache`, dùng clip màu riêng và không sửa bản nháp/lịch sử/video thật.
 
 
 ### Tự cập nhật câu nói từ Google Sheet — v9
@@ -92,11 +92,30 @@ Danh sách cập nhật ở nền, giữ nguyên câu đang soạn và các Reel
 
 Nút Xuất nhiều Reel dùng danh sách tại lúc bắt đầu, nên bài mới xuất hiện giữa chừng sẽ dành cho lần xuất tiếp theo. Nếu Sheet rỗng, vẫn có thể nhập và tải một Reel riêng. Khi tiến trình ứng dụng dừng, việc kiểm tra cũng dừng; lần mở tiếp theo kiểm tra ngay.
 
-Kiểm tra bản đóng gói riêng: `python -X utf8 verify_v9.py --hold`. Với bài thử cục bộ không muốn đọc Sheet, thêm `--no-sheet-sync` khi chạy ứng dụng. Không thay đổi thiết lập chia sẻ của Sheet qua app.
+Kiểm tra bản đóng gói hiện tại: `python -X utf8 verify_v10.py --hold --fullhd`. Với bài thử cục bộ không muốn đọc Sheet, thêm `--no-sheet-sync` khi chạy ứng dụng. Không thay đổi thiết lập chia sẻ của Sheet qua app.
 
 
 ### Xem trước nhanh và giãn dòng đều — v9
 
-Sau khi bạn ngừng sửa khoảng một giây, app chuẩn bị bản xem trước ở nền. Khi hiện **Sẵn sàng xem**, bấm Phát sẽ mở bản đã chuẩn bị; không tự phát tiếng/video. Bản xem nhanh 360×640 dùng cùng kịch bản, chữ, chuyển cảnh và nhạc; video tải xuống vẫn Full HD 1080×1920. Lần đầu hoặc vừa đổi câu có thể cần chờ ngắn để chuẩn bị. Preview có hàng đợi riêng, không phải đợi xuất nhiều Reel xong, và không tính lượt footage.
+V9 dùng MP4 preview dựng ở nền; v10 thay bằng nháp trực tiếp từ footage cache, xem phần dưới. Full HD vẫn dùng renderer và plan chung, preview không tăng lượt footage.
 
 Giãn dòng câu nói và nguồn được căn theo đường chân chữ chung, giữ đều bước dòng dù các dòng có dấu tiếng Việt cao/thấp khác nhau. App tạo lại cache kế hoạch/preview để áp dụng bản sửa; bản video đã xuất trước đây cần xuất lại nếu muốn bố cục mới.
+
+
+### Chọn footage và nháp tức thì — v10
+
+Kịch bản nằm ngay trên kho footage. Mỗi thẻ có ảnh, chữ, thời gian và tốc độ; chọn cảnh rồi bấm thumbnail để gợi ý thay clip cho đúng cảnh đó. App giữ vị trí đang chọn và cuộn; khi quy tắc chống lặp/lượt dùng cần chọn clip khác, tên clip thực tế và lý do được hiển thị rõ. Gợi ý từng cảnh được tự lưu, giữ khi chỉnh thiết kế và xóa khi đổi nội dung hoặc cách chia cảnh. Batch không dùng các gợi ý riêng của bản nháp.
+
+Nháp dùng hai video nền nhẹ 360×640 và PNG chữ do chính renderer Full HD tạo. Đổi chữ không dựng lại nền; mỗi clip chỉ cần tạo bản nhẹ lần đầu, lưu trong `.cache/draft_media` và chuẩn bị dần cả kho. Clip đang dùng được ưu tiên. Nháp giữ timeline, cắt nguồn, làm chậm, fade chữ và nhạc từ server; chuyển cảnh/độ mượt/màu có thể khác nhẹ Full HD. Khi thiếu dữ liệu, hình, chữ và nhạc cùng dừng chờ. API preview MP4 cũ vẫn dành cho kiểm tra/tương thích, giao diện mới không gọi dựng Reel để xem nháp.
+
+### Ghi nhớ câu đã tải — v10
+
+Chỉ **Tải video lưu file thành công** mới đánh dấu **ĐÃ TẢI VIDEO**. Hủy hộp thoại, lỗi dựng/lưu, chỉ xem nháp hoặc Xuất nhiều Reel đều không đánh dấu. Có ngày tải gần nhất, số lần tải, bộ đếm đã/chưa tải và nút **Câu chưa tải tiếp theo**. Lịch sử theo nội dung sau NFC và gộp khoảng trắng: các dòng Sheet trùng nội dung cùng trạng thái; sửa nội dung tạo câu chưa tải mới. Không suy đoán video tải trước v10 vì các bản cũ chưa lưu liên kết câu–file.
+
+Lúc mở app, chọn câu chưa tải đầu tiên theo thứ tự Sheet. Nếu đã tải hết, hiển thị rõ và chọn câu đầu; Sheet rỗng giữ bản nháp. Bản soạn/cài đặt trước khi chuyển câu được giữ trong `draft_recovery.json` và mở lại bằng nút trong phần câu nói. `quote_download_history.json` là dữ liệu cá nhân bền vững, độc lập `footage_usage.json`; sao lưu riêng cả hai khi chuyển máy. Sheet cập nhật trong phiên không thay bản đang soạn.
+
+### Nhạc nền offline — v10
+
+Kho nguồn: [music background của vinhn8n/voicedaoly](https://huggingface.co/datasets/vinhn8n/voicedaoly/tree/main/music%20background). Các bài được tải thành file cục bộ vào `CLIP TƯỢNG PHẬT LQ/NHẠC NỀN` ở kho mặc định, hoặc `NHẠC NỀN` bên trong folder footage tự chọn. Tải/bổ sung ở nền, kiểm tra SHA256 và giữ nguyên file cũ nếu trùng tên nhưng khác nội dung. Không cần tài khoản hoặc token Hugging Face; xem nháp/xuất dùng file offline, không gọi mạng để phát.
+
+Mặc định mỗi Reel chọn ngẫu nhiên một bài; đổi câu/nhấn **Đổi bài ngẫu nhiên** tránh bài ngay trước khi còn lựa chọn. Chỉnh chữ hoặc footage giữ nguyên bài. Có tìm tên, chọn bài cố định, nghe thử, mở kho, dùng chuông thiền hoặc tắt nhạc. Batch random từng Reel, tránh lặp bài liền trước. Nhạc ngắn được lặp cho đủ Reel và fade đầu/cuối, âm thanh footage luôn tắt. Kho chưa có bài thì báo rõ đang dùng chuông thiền; bài chọn cố định bị mất sẽ yêu cầu chọn lại.
