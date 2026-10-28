@@ -40,12 +40,12 @@ BAT / VBS / EXE / python app.py
       → core.media: thông tin nguồn thực qua FFprobe
   → core.jobs: hàng đợi một worker
       → core.renderer: nền cắt/làm chậm → crossfade → overlay Pillow → nhạc
-      → bản nhẹ 540×960 hoặc Full HD 1080×1920
+      → bản nhẹ 360×640 hoặc Full HD 1080×1920
   → trình duyệt phát MP4 đã có chữ; không vẽ chồng canvas
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v8, rồi v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v9, rồi v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -77,6 +77,8 @@ Chạy phát triển: `python -X utf8 app.py`. Chạy API thử: `python -X utf8
 | `logs/app.log`, `logs/console.log` | Lỗi runtime/render và stdout EXE | Không |
 
 Đường dẫn chạy nguồn lấy từ `app.py`. Bản frozen lấy UI/font/FFmpeg trong `sys._MEIPASS`; dữ liệu ghi được nằm cạnh EXE hoặc thư mục cha có kho clip. Ưu tiên vị trí EXE trước CWD. Không đưa thư mục dữ liệu tùy ý vào `sys.path` khi frozen.
+
+V9 dùng `core.quote_sync.QuoteSyncService` làm catalog cho UI và batch; lấy toàn bộ cột A tab “Đạo lý hay mỗi ngày” từ Sheet công khai khi mở app và mỗi 1.800 giây. PMDX/TXT là nguồn dự phòng khi chưa từng đồng bộ hoặc dùng --no-sheet-sync.
 
 `core.pmdx_reader.get_all_quotes()` thử PMDX có `xl/sharedStrings.xml`, rồi TXT từng dòng; fallback 16 câu chuẩn. Tên `quotes.xlsx` hiện còn trong danh sách ứng viên nhưng **chưa có bộ đọc XLSX**. Không hứa hỗ trợ workbook XLSX tổng quát. Mọi text vẽ được chuẩn hóa NFC.
 
@@ -123,7 +125,7 @@ Năm theme: Thiền Vàng, Tinh Khôi, Kinh Điển, Điện Ảnh, Sen Giấy. 
 
 Viền chữ mềm dùng chung cho quote và credit, chỉnh qua settings: `outline_enabled` (mặc định true), `outline_color` (`auto` hoặc #RRGGBB, mặc định auto), `outline_width` (0–16 px Full HD, mặc định 4), `outline_blur` (0–24 px, mặc định 8), `outline_opacity` (0..1, mặc định 0.85; nhận phần trăm cũ). Các tên camelCase tương ứng được chuẩn hóa. `auto` dùng màu tối #101018 cho chữ sáng và màu giấy #fff8e9 cho chữ tối của Sen Giấy. Màu tự chọn được giữ khi đổi theme.
 
-`soft_outline(mask, style)` lấy mask glyph, crop vùng có chữ với padding, giãn mask bằng MaxFilter, làm nhòe Gaussian, trừ vùng mực gốc rồi áp màu/opacity. `paint_outlined_text()` composite viền và nét chữ sắc sau cùng. Không blur trực tiếp phần chữ. Tắt viền, opacity 0 hoặc width=blur=0 trả đúng phần chữ không viền. Credit có độ dày/nhòe giảm theo tỷ lệ cỡ chữ để không bết chữ nhỏ. UI có bật/tắt, tự chọn màu, color picker và ba thanh trượt; mọi chỉnh sửa invalidate plan/preview và được lưu cùng settings. Các field outline tự đi vào hash kế hoạch; PLAN_VERSION v8 bao gồm quy tắc cân dòng mới để không dùng overlay cache cũ.
+`soft_outline(mask, style)` lấy mask glyph, crop vùng có chữ với padding, giãn mask bằng MaxFilter, làm nhòe Gaussian, trừ vùng mực gốc rồi áp màu/opacity. `paint_outlined_text()` composite viền và nét chữ sắc sau cùng. Không blur trực tiếp phần chữ. Tắt viền, opacity 0 hoặc width=blur=0 trả đúng phần chữ không viền. Credit có độ dày/nhòe giảm theo tỷ lệ cỡ chữ để không bết chữ nhỏ. UI có bật/tắt, tự chọn màu, color picker và ba thanh trượt; mọi chỉnh sửa invalidate plan/preview và được lưu cùng settings. Các field outline tự đi vào hash kế hoạch; PLAN_VERSION v9 bao gồm quy tắc căn baseline và preview nhanh mới để không dùng overlay cache cũ.
 
 `scene_overlay()` và `render_overlay()` dùng chung cho ảnh tĩnh, preview và Full HD. Preview thu nhỏ ảnh từ chính overlay Full HD. Renderer chuẩn hóa nền từng cảnh, làm chậm/crop/fps, sau đó ghép xfade và overlay theo timeline. Chốt `format=yuv444p,fps=30` trước xfade để tránh lỗi FFmpeg rate `1/0`. MP4 cuối H.264/yuv420p + AAC, faststart. Nhạc nền liên tục có fade đầu/cuối; âm thanh nguồn bị tắt.
 
@@ -136,7 +138,9 @@ HTTP chỉ cục bộ. JSON lỗi `{success:false,error}` với HTTP 400. File t
 | Method / URL | Chức năng |
 | --- | --- |
 | GET `/api/health` | version, pid; kiểm tra khởi động |
-| GET `/api/quotes` | danh sách câu |
+| GET `/api/quotes` | danh sách câu từ catalog hiện tại, giữ API mảng cũ |
+| GET `/api/quote_catalog` | snapshot quotes + sync metadata nhất quán |
+| GET/POST `/api/quote_sync` | đọc trạng thái / yêu cầu kiểm tra Sheet nền ngay, POST trả 202 |
 | GET `/api/videos` | danh sách clip phân tích được |
 | GET/POST `/api/settings` | đọc session chuẩn hóa / merge patch atomically; hỗ trợ `{_client_id,_sequence,_patch}` và body field cũ |
 | POST `/api/plan` | payload quote + video_path + settings → plan |
@@ -154,9 +158,9 @@ HTTP chỉ cục bộ. JSON lỗi `{success:false,error}` với HTTP 400. File t
 | POST `/api/save_video` | save_token + render_job_id Full HD hoàn tất → job sao chép HTTP 202; result.saved_path khi xong |
 | POST `/api/open_folder` | mở output_videos |
 
-`core.jobs.JobManager` dùng ThreadPoolExecutor một worker cho mọi job; thêm khóa export liên tiến trình và giữ chỗ footage. Preview cùng plan đang chờ/chạy được gộp; preview đã có file hợp lệ dùng cache. Job lưu RAM, không tự tiếp tục sau restart. Batch báo files/failures theo từng câu, không trả thành công giả khi một phần thất bại.
+V9 `core.jobs.JobManager` dùng một worker cho export/batch/save và một worker riêng cho preview; thêm khóa export liên tiến trình và giữ chỗ footage. Preview cùng plan đang chờ/chạy được gộp; preview đã có file hợp lệ dùng cache. Job lưu RAM, không tự tiếp tục sau restart. Batch báo files/failures theo từng câu, không trả thành công giả khi một phần thất bại.
 
-`ui/app.js`: gọi plan sau thay đổi với debounce, dùng revision để bỏ kết quả đến muộn. Không tính timeline hay tự vẽ template nữa. Ảnh tĩnh: thumbnail + overlay máy chủ. Play: tạo/poll preview job rồi bật video controls và tắt canvas. Các chức năng pause/resume/seek/ended dựa trên video thật. Sửa nội dung/clip/settings làm plan/preview/export URL hiện tại hết hiệu lực. Kết quả job cũ vẫn có thể còn trong cache, nhưng không phát nhầm lên thiết lập mới.
+`ui/app.js`: gọi plan sau thay đổi với debounce, dùng revision để bỏ kết quả đến muộn. Không tính timeline hay tự vẽ template nữa. Ảnh tĩnh: thumbnail + overlay máy chủ. Sau kế hoạch ổn định 900 ms, UI chuẩn bị preview ở nền và preload MP4, không tự phát. Play dùng lại file hoặc Promise đang chuẩn bị, rồi bật video controls và tắt canvas. Các chức năng pause/resume/seek/ended dựa trên video thật. Sửa nội dung/clip/settings làm plan/preview/export URL hiện tại hết hiệu lực. Kết quả job cũ vẫn có thể còn trong cache, nhưng không phát nhầm lên thiết lập mới.
 
 Tự lưu v5: `core.settings.load_settings()` đọc `session_state.json`; nếu chưa có mới nhập từ settings.json cũ. Bản v5 ghi file riêng để các EXE cũ còn mở không thể ghi đè bản nháp mới. `save_settings_patch()` nhận patch từng field, không reset field bị bỏ qua; `_client_id` + `_sequence` ngăn request cũ ghi đè request mới cùng trang. File ghi qua temp riêng + fsync + replace, có khóa liên phiên trong `core.persistence`.
 
@@ -194,7 +198,7 @@ python -X utf8 build_onefile.py
 - Sau đổi player/API phải kiểm tra giao diện thật: Play hết câu, pause/resume, click scene/tua, phát lại, sửa settings rồi Play lại, không vẽ chữ hai lần, export đúng duration.
 - Sau đổi build/runtime phải kiểm tra EXE mới, health API, preview và render qua EXE, rồi mở BAT. Không kết luận build thành công chỉ từ việc PyInstaller không lỗi.
 
-`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v8 trước ở `AutoReelSachHay_v8.previous.exe`, copy bản mới tên `AutoReelSachHay_v8.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
+`AutoReelSachHay.spec` dùng đường dẫn tương đối theo SPECPATH. Gói UI, ba font, audio, FFmpeg/FFprobe và DLL cùng thư mục bin; core được phân tích như module Python, không copy mã nguồn và cache như data. Build không gom cả kho assets/thumbnails/clip. `build_exe.py` và `build_onefile.py` cùng tạo bản single-file; giữ EXE v9 trước ở `AutoReelSachHay_v9.previous.exe`, copy bản mới tên `AutoReelSachHay_v9.exe` sang gốc và dist. Các EXE cũ được giữ nguyên; không cưỡng bức kết thúc tiến trình người dùng.
 
 `multiprocessing.freeze_support()` ở entrypoint trước import module ứng dụng. EXE windowed mở log thay stdout/stderr None. Mọi FFmpeg/FFprobe child dùng CREATE_NO_WINDOW; chạy công cụ trong bundle trước PATH. Không dùng `sys.executable` để giả lập Python child trong EXE.
 
@@ -240,3 +244,27 @@ Chạy thử với dữ liệu riêng: `app.py --headless --workspace <thư mụ
 - Bỏ btnRenderSingle và luồng renderSingle; giữ renderSnapshot dùng cho Tải video. btnBatchRender nằm trong header sticky, số câu và modal lấy từ danh sách thực. Âm lượng và tiến độ vẫn ở panel cuối.
 - Build tạo AutoReelSachHay_v8.exe; BAT/VBS ưu tiên v8 và chuyển tiếp tham số --workspace/--port để kiểm tra profile riêng. Không đóng phiên cũ.
 - `tests/test_v8.py` và `node tests/test_download_ui.js` kiểm tra folder/cancel/restart, chia câu, cân dòng, kho hoạt động, lượt dùng và ngữ cảnh câu trước. `python -X utf8 verify_v8.py --hold` mở EXE qua VBS trên profile riêng, kiểm tra preview/Full HD/batch, decode và đối chiếu màu footage, đổi kho giữa batch, lỗi kho và restart; giữ phiên riêng để kiểm tra UI.
+
+
+## V9 — Tự cập nhật câu nói từ Google Sheet, chỉ đọc (2026-10-28)
+
+- Nguồn cố định: https://docs.google.com/spreadsheets/d/1Ku40G9gH89W7eRpN6u6NAYnxj2hGf8Gv-QL_34a2teI/edit, tab `Đạo lý hay mỗi ngày`, cột A. Lấy mọi dòng không trống, bao gồm dòng có done ở cột B; giữ thứ tự, câu trùng và xuống dòng trong ô. Đồng bộ thay toàn bộ snapshot để phản ánh thêm/sửa/xóa; không ghi lên Sheet.
+- `core/quote_sync.py` dùng urllib GET endpoint gviz/tq với out:csv, sheet theo tên, range A:A và headers=0; không cookie jar/OAuth/API key/quyền Google. Timeout 20 giây, giới hạn 2 MiB/10.000 câu/20.000 ký tự mỗi câu; từ chối HTML/login/CSV lỗi và giữ danh sách tốt gần nhất. Sheet phải tiếp tục cho phép đọc công khai bằng liên kết.
+- Worker daemon riêng bắt đầu ngay sau khi HTTP server sẵn sàng, sau mỗi lần thử đợi 1.800 giây (kể cả lỗi). Không dùng render worker hoặc timer trình duyệt để gọi Google. Nút Cập nhật ngay đánh thức cùng worker; gộp yêu cầu khi đang chạy. Không có Codex automation ngoài app và không tự xuất Reel khi có bài mới.
+- Cache dữ liệu cá nhân nằm ở `.cache/quotes/google_sheet.json` (version/source/timestamp/quotes), tự loại khỏi Git; đọc cache trước khi kết nối, ghi atomic có khóa riêng. Không sửa PMDX, TXT, session_state.json hoặc footage_usage.json khi đồng bộ. Không có cache thì dùng nguồn cục bộ tạm thời. Snapshot Sheet rỗng hợp lệ xóa danh sách, vẫn giữ bản nháp và cho xuất câu nhập tay.
+- GET `/api/quotes` vẫn trả mảng {id,key,quote,credit}. `key` theo hash nội dung + thứ tự bản trùng, giữ lựa chọn khi reorder. GET `/api/quote_catalog` trả {quotes,sync}; GET `/api/quote_sync` trả enabled/syncing/source/count/revision/sheet_name/sheet_url/interval_seconds/last_checked_at/last_success_at/next_check_at/error; timestamp là Unix giây. POST `/api/quote_sync` yêu cầu kiểm tra, trả trạng thái HTTP 202.
+- UI hỏi trạng thái local mỗi 15 giây, chỉ lấy catalog khi revision đổi. Cập nhật danh sách/nhãn/số câu trong nền, không gọi loadQuote/invalidate/autosave: giữ nguyên textarea (kể cả dòng trống/trailing Enter), preview plan, export và ngữ cảnh footage. Khi câu đang chọn bị sửa/xóa, hiện Bản nháp hiện tại; người dùng chủ động chọn lại câu mới. Có thông báo cập nhật/lỗi/lần thành công gần nhất và link mở Sheet.
+- Batch chụp bản sao catalog ở lúc submit; thay đổi Sheet trong lúc chạy không đổi items. Job thêm total, kết quả thêm total_requested; UI dùng tổng đã chụp để không báo sai khi danh sách đổi. Danh sách rỗng vô hiệu hóa xuất nhiều Reel. CLI --batch kiểm tra Sheet một lần trước khi chụp danh sách.
+- `--no-sheet-sync` dành cho profile thử/luồng cục bộ: không mạng và không lấy cache Sheet, vẫn đọc PMDX/TXT/default. Bài kiểm tra cũ về kho riêng cần dùng cờ này khi chạy EXE mới.
+- Đợt v9 có thêm sửa giãn dòng và tối ưu preview theo yêu cầu tiếp theo; PLAN_VERSION tăng thành `multi-scene-v9-sheet-sync-baselines-fast-preview-template-4`. Build và launcher dùng v9, giữ v8 và mọi phiên cũ. `tests/test_quote_sync.py`, `node tests/test_quote_sync_ui.js` kiểm tra parser, lỗi/cache, chu kỳ 1.800 giây bằng thời gian giả lập, cập nhật list và batch snapshot. `verify_v9.py --hold` kiểm tra Sheet thật qua EXE/launcher trên profile riêng; không sửa dữ liệu trên Sheet.
+
+
+### Bổ sung v9 — Giãn dòng đều và preview nhanh
+
+- Lỗi cũ: `anchor=lt` căn mép mực từng dòng khiến vị trí thân chữ đổi theo dấu cao/thấp. Layout mới đo toàn khối bằng `anchor=ls`, tính quote_baseline/credit_baseline chung và tăng Y cố định qline/cline. Dấu tiếng Việt vẫn nằm trong chiều cao khối và vùng an toàn; separator vẫn căn theo credit_y. `paint_outlined_text` nhận anchor tùy chọn, quote và credit dùng ls; các caller cũ vẫn mặc định lt.
+- Preview mặc định 360×640, 30 fps, x264 ultrafast CRF 26/AAC 96k; Full HD giữ 1080×1920, veryfast CRF 19/AAC 192k. Cùng `render_plan`, plan, scene_overlay, crop/speed/timeline/xfade/fade/music. Với tối đa 4 cảnh preview đọc trực tiếp đoạn nguồn bằng input seek chính xác và ghép/mã hóa một lượt, bỏ các MP4 nền trung gian. Trên 4 cảnh vẫn chuẩn hóa nền tuần tự ở 360p để giới hạn số decoder nguồn lớn. Preview giảm độ nét để xem nhanh; xuất Full HD giữ chất lượng cũ.
+- Preview có worker riêng nên không đứng sau export/batch. Preview hoàn tất trong cache trả job done ngay sau kiểm tra plan, không qua hàng đợi; có khóa cache liên phiên chống hai app ghi chung partial. Preview_client_id từ UI cho phép bỏ future preview cũ còn queued của cùng trang; job cũ trả error/code preview_superseded, không hủy export hoặc preview đã chạy.
+- UI debounce plan 350 ms, sau đó chờ ổn định 900 ms để chuẩn bị preview. Dùng chung Promise giữa warm-up và click Play; preload file, không tự phát/không đổi cảnh đang chọn; kết quả revision cũ không được đưa lên player. Poll preview 250 ms; đã sẵn sàng thì Play không gọi dựng lại. Thay nội dung/clip/settings xóa trạng thái và timer preview; đổi danh sách Sheet giữ nguyên preview của bản nháp. JobManager.close đóng cả hai executor.
+- Kiểm tra mới: `tests/test_line_spacing.py`, `tests/test_fast_preview.py`, `node tests/test_fast_preview_ui.js`. `verify_v9.py --hold --real-source <clip>` kiểm tra thêm câu trong ảnh mẫu qua overlay/preview/Full HD của EXE và độ trễ lấy cache; clip thật chỉ đọc, mọi dữ liệu/lượt dùng nằm trong profile thử.
+
+Các helper verify_v5/verify_v8 lưu lại quy trình của phiên bản lịch sử; kiểm tra launcher và API mới bằng verify_v9.py. Profile thử mới có thể dùng --no-sheet-sync để tránh thay danh sách TXT bằng Sheet thật.

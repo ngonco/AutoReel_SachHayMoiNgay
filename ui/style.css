@@ -698,3 +698,5 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 .library-actions {display:flex;flex-wrap:wrap;gap:8px;}
 .top-actions {flex-wrap:wrap;max-width:100%;}
 .topbar {flex-wrap:wrap;}
+.quote-sync-bar {display:grid;gap:8px;margin-top:12px;color:var(--text-muted);font-size:12px;line-height:1.6;}
+.quote-sync-bar .btn-group {display:flex;flex-wrap:wrap;gap:8px;}

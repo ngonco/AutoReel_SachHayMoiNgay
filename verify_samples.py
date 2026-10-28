@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from PIL import Image,ImageDraw
 from core.planner import build_plan
-from core.renderer import render_plan, render_overlay
+from core.renderer import render_plan, render_overlay, PREVIEW_SIZE
 from core.video_detector import VideoDetector
 from core.pmdx_reader import DEFAULT_QUOTES
 from core.media import probe, run_media, tool_path
@@ -26,7 +26,7 @@ def main():
             target=out/(name+('_preview' if preview else '_fullhd')+'.mp4')
             result=render_plan(plan,target,ROOT,preview,lambda p,m:print(name,'preview' if preview else 'fullhd',p,m,flush=True))
             info=probe(target)
-            assert (info['width'],info['height'])==((540,960) if preview else (1080,1920))
+            assert (info['width'],info['height'])==(PREVIEW_SIZE if preview else (1080,1920))
             assert abs(info['duration']-plan['duration'])<.1
             check=run_media([tool_path('ffmpeg'),'-v','error','-i',str(target),'-f','null','-'],capture_output=True)
             assert check.returncode==0,check.stderr

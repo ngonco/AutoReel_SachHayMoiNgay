@@ -35,12 +35,19 @@
         </div>
 
         <div class="field">
-          <label for="quoteSelect">Chọn câu từ danh sách (16 câu có sẵn):</label>
+          <label for="quoteSelect" id="quoteListLabel">Chọn câu từ danh sách:</label>
           <div style="display:flex; gap:8px;">
             <select id="quoteSelect"></select>
             <button class="btn small" id="btnPrevQuote" title="Câu trước">◀</button>
             <button class="btn small" id="btnNextQuote" title="Câu sau">▶</button>
             <button class="btn small" id="btnRandQuote" title="Ngẫu nhiên">🎲</button>
+          </div>
+          <div class="quote-sync-bar">
+            <span id="quoteSyncStatus" role="status" aria-live="polite">Đang kiểm tra danh sách câu nói…</span>
+            <div class="btn-group">
+              <button class="btn small" id="btnSyncQuotes">↻ Cập nhật ngay</button>
+              <a class="btn small" href="https://docs.google.com/spreadsheets/d/1Ku40G9gH89W7eRpN6u6NAYnxj2hGf8Gv-QL_34a2teI/edit" target="_blank" rel="noopener noreferrer">Mở Sheet</a>
+            </div>
           </div>
         </div>
 
@@ -286,7 +293,7 @@
         </div>
 
         <div style="font-size:11px; color:var(--text-dim); line-height:1.5; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
-          ✦ <strong>Mẹo Reels:</strong> Câu dài tự chia cảnh và tăng thời lượng đủ đọc. Play sẽ dựng bản nhẹ với chữ, nền, nhạc giống bản xuất Full HD.
+          ✦ <strong>Mẹo Reels:</strong> Câu dài tự chia cảnh và tăng thời lượng đủ đọc. Bản xem trước được chuẩn bị ở nền, dùng cùng chữ, nền và nhạc với bản xuất Full HD.
         </div>
       </div>
     </aside>

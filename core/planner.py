@@ -9,7 +9,7 @@ from core.settings import normalize_settings, load_settings
 from core.footage_pool import FootagePool
 from core.persistence import atomic_json
 
-PLAN_VERSION = 'multi-scene-v8-library-clauses-balanced-lines-footage'
+PLAN_VERSION = 'multi-scene-v9-sheet-sync-baselines-fast-preview-template-4'
 
 
 def fingerprint(path):

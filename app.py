@@ -28,7 +28,7 @@ if '--workspace' in sys.argv:
     BASE_DIR=Path(sys.argv[sys.argv.index('--workspace')+1]).resolve()
     if not BASE_DIR.is_dir():raise ValueError('Thư mục dữ liệu không tồn tại.')
 
-from core.pmdx_reader import get_all_quotes
+from core.quote_sync import QuoteSyncService
 from core.video_detector import VideoDetector
 from core.planner import build_plan, load_plan
 from core.renderer import scene_overlay
@@ -41,6 +41,7 @@ video_detector = None
 jobs = None
 downloads = None
 video_library = None
+quote_sync = None
 settings_lock = threading.Lock()
 
 
@@ -63,9 +64,13 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 name = 'index.html' if path == '/' else path[1:]
                 return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
             if path == '/api/health':
-                return self._send_json(dict(success=True, version='multi-scene-v8', pid=os.getpid()))
+                return self._send_json(dict(success=True, version='multi-scene-v9', pid=os.getpid()))
             if path == '/api/quotes':
-                return self._send_json(get_all_quotes(str(BASE_DIR)))
+                return self._send_json(quote_sync.get_quotes())
+            if path == '/api/quote_catalog':
+                return self._send_json(quote_sync.snapshot())
+            if path == '/api/quote_sync':
+                return self._send_json(quote_sync.status())
             if path == '/api/videos':
                 videos=video_detector.scan_all_videos()
                 saved_path=read_settings().get('video_path','')
@@ -120,6 +125,8 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
             if path == '/api/settings':
                 settings = save_settings_patch(BASE_DIR, body)
                 return self._send_json(dict(success=True, settings=settings))
+            if path == '/api/quote_sync':
+                return self._send_json(quote_sync.request_refresh(), 202)
             if path == '/api/plan':
                 return self._send_json(build_plan(body, BASE_DIR, video_detector))
             if path == '/api/select_video_directory':
@@ -130,7 +137,8 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 return self._send_json(downloads.save(str(body.get('save_token', '')), str(body.get('render_job_id', '')), jobs), 202)
             if path in ('/api/preview', '/api/render'):
                 plan = load_plan(str(body['plan_id']), BASE_DIR) if body.get('plan_id') else build_plan(body, BASE_DIR, video_detector)
-                job = jobs.submit(plan, preview=path == '/api/preview')
+                job = jobs.submit(plan, preview=path == '/api/preview',
+                                  preview_client=str(body.get('preview_client_id',''))[:80] if path == '/api/preview' else None)
                 if path == '/api/preview' or body.get('async'):
                     return self._send_json(job, 202)
                 # Legacy scripts still receive a completed render result.
@@ -143,7 +151,10 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 videos = video_detector.scan_all_videos(body['background_video_directory'])
                 if not videos:
                     raise ValueError('Kho video trống.')
-                items = [{**body, 'quote': q['quote'], 'previous_footage_ids': [], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
+                quotes = quote_sync.get_quotes()
+                if not quotes:
+                    raise ValueError('Sheet chưa có câu nói để xuất nhiều Reel.')
+                items = [{**body, 'quote': q['quote'], 'previous_footage_ids': [], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(quotes)]
                 job = jobs.batch(items, video_detector)
                 if body.get('async'):
                     return self._send_json(job, 202)
@@ -247,7 +258,7 @@ def launch_app_window(url):
 
 
 def main():
-    global video_detector, jobs, downloads, video_library
+    global video_detector, jobs, downloads, video_library, quote_sync
     logs = BASE_DIR / 'logs'
     logs.mkdir(exist_ok=True)
     logging.basicConfig(filename=logs / 'app.log', encoding='utf-8', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -260,22 +271,28 @@ def main():
     jobs = JobManager(BASE_DIR)
     downloads = SaveVideoService(BASE_DIR)
     video_library = VideoLibraryService(BASE_DIR, video_detector)
+    quote_sync = QuoteSyncService(BASE_DIR, enabled='--no-sheet-sync' not in sys.argv)
     if '--batch' in sys.argv:
+        quote_sync.refresh()
         videos = video_detector.scan_all_videos()
         if not videos:
             raise ValueError('Kho video trống.')
         settings = read_settings()
-        items = [{**settings, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(get_all_quotes(str(BASE_DIR)))]
+        quotes = quote_sync.get_quotes()
+        if not quotes:
+            raise ValueError('Sheet chưa có câu nói để xuất nhiều Reel.')
+        items = [{**settings, 'quote': q['quote'], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(quotes)]
         job = jobs.batch(items, video_detector)
         while job['status'] not in ('done', 'error'):
             time.sleep(.5)
             job = jobs.get(job['job_id'])
         print(json.dumps(job, ensure_ascii=False))
-        jobs.executor.shutdown()
+        jobs.close()
         return
     port = int(sys.argv[sys.argv.index('--port') + 1]) if '--port' in sys.argv else find_free_port()
     server = ThreadingHTTPServer(('127.0.0.1', port), ReelRequestHandler)
     server.daemon_threads = True
+    quote_sync.start()
     url = f'http://127.0.0.1:{port}'
     logging.info('Studio started: %s', url)
     print('Auto Reel: ' + url, flush=True)
@@ -287,7 +304,8 @@ def main():
         pass
     finally:
         server.server_close()
-        jobs.executor.shutdown(wait=True)
+        quote_sync.close()
+        jobs.close()
 
 
 if __name__ == '__main__':

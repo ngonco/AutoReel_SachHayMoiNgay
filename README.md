@@ -4,13 +4,13 @@
 
 - Câu dài tự chia thành nhiều cảnh, giữ đủ nội dung và dấu câu.
 - Mỗi cảnh dùng một clip khác; clip ngắn được làm chậm vừa đủ.
-- Play dựng bản nhẹ 540×960 có đầy đủ chữ, nhạc và chuyển cảnh 0,4 giây.
+- Preview 360×640 được chuẩn bị ở nền, Play dùng lại bản đã sẵn sàng có đầy đủ chữ, nhạc và chuyển cảnh 0,4 giây.
 - Xuất Full HD 1080×1920 từ chính kế hoạch đã xem trước.
 - Tổng thời lượng tự tăng để đủ đọc, tối thiểu theo nút 10/12/15 giây đã chọn.
 
 ## Chạy
 
-Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v8.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
+Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v9.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
 
 Chạy từ mã nguồn trên Windows, Python 3.11:
 
@@ -42,7 +42,7 @@ python -X utf8 build_onefile.py
 
 `verify_samples.py` cần kho clip thật và xuất ba mẫu (một, hai, ba cảnh) ở cả bản nhẹ và Full HD. Kết quả ở `output_videos/verification`; ảnh kiểm tra và báo cáo ở `test_renders/verification`.
 
-Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v8.previous.exe`.
+Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v9.previous.exe`.
 
 Bắt buộc sau mỗi đợt sửa code, kể cả giao diện: đóng gói lại EXE từ code cuối cùng, mở qua launcher và kiểm tra chức năng vừa sửa trên bản đóng gói trước khi bàn giao. Không giao EXE cũ sau khi chỉ kiểm tra mã nguồn. Chỉ sửa tài liệu thì không cần build lại.
 
@@ -82,3 +82,21 @@ V8 tránh toàn bộ footage của câu trước khi đổi câu (kể cả ch�
 Với nội dung một dòng, tự chia theo dấu kết câu và ưu tiên dấu phẩy/từ nối khi hai vế đủ dài, từ nối nằm ở cảnh sau. Nhấn Enter vẫn chủ động đặt mỗi dòng thành một cảnh. Chữ hiển thị tự cân dòng, tránh đuôi một từ hoặc hai từ ngắn và giữ các cụm như “hạnh phúc”, “biết ơn”, “yêu thương” khi khung cho phép. Tắt tự chia để giữ nguyên một cảnh cho nội dung một dòng.
 
 Kiểm tra riêng bản đóng gói: `python -X utf8 verify_v8.py --hold`. Script tạo profile dưới `.cache`, dùng clip màu riêng và không sửa bản nháp/lịch sử/video thật.
+
+
+### Tự cập nhật câu nói từ Google Sheet — v9
+
+Ứng dụng tự đọc tab **Đạo lý hay mỗi ngày** trong [Sheet nguồn](https://docs.google.com/spreadsheets/d/1Ku40G9gH89W7eRpN6u6NAYnxj2hGf8Gv-QL_34a2teI/edit) khi mở app và **mỗi 30 phút khi app đang chạy**. Lấy toàn bộ cột A, kể cả dòng đã đánh dấu done ở cột B; thêm/sửa/xóa câu trong app theo Sheet. Bấm **Cập nhật ngay** nếu cần kiểm tra sớm hơn. Chỉ đọc công khai, không đăng nhập, không khóa API, không xin quyền hoặc ghi lên Google Sheet.
+
+Danh sách cập nhật ở nền, giữ nguyên câu đang soạn và các Reel đang xuất. Nếu câu đang chọn bị sửa/xóa trên Sheet, phần đang soạn được giữ làm bản nháp để bạn chủ động chọn lại. Mất mạng hoặc Sheet không còn công khai: app giữ danh sách đã tải gần nhất và báo lỗi, tiếp tục thử lại sau 30 phút. Chưa từng tải thành công thì tạm dùng câu trong PMDX/TXT/có sẵn. Bản lưu Sheet nằm trong `.cache/quotes/google_sheet.json`; không phải bản nháp và không đưa lên GitHub.
+
+Nút Xuất nhiều Reel dùng danh sách tại lúc bắt đầu, nên bài mới xuất hiện giữa chừng sẽ dành cho lần xuất tiếp theo. Nếu Sheet rỗng, vẫn có thể nhập và tải một Reel riêng. Khi tiến trình ứng dụng dừng, việc kiểm tra cũng dừng; lần mở tiếp theo kiểm tra ngay.
+
+Kiểm tra bản đóng gói riêng: `python -X utf8 verify_v9.py --hold`. Với bài thử cục bộ không muốn đọc Sheet, thêm `--no-sheet-sync` khi chạy ứng dụng. Không thay đổi thiết lập chia sẻ của Sheet qua app.
+
+
+### Xem trước nhanh và giãn dòng đều — v9
+
+Sau khi bạn ngừng sửa khoảng một giây, app chuẩn bị bản xem trước ở nền. Khi hiện **Sẵn sàng xem**, bấm Phát sẽ mở bản đã chuẩn bị; không tự phát tiếng/video. Bản xem nhanh 360×640 dùng cùng kịch bản, chữ, chuyển cảnh và nhạc; video tải xuống vẫn Full HD 1080×1920. Lần đầu hoặc vừa đổi câu có thể cần chờ ngắn để chuẩn bị. Preview có hàng đợi riêng, không phải đợi xuất nhiều Reel xong, và không tính lượt footage.
+
+Giãn dòng câu nói và nguồn được căn theo đường chân chữ chung, giữ đều bước dòng dù các dòng có dấu tiếng Việt cao/thấp khác nhau. App tạo lại cache kế hoạch/preview để áp dụng bản sửa; bản video đã xuất trước đây cần xuất lại nếu muốn bố cục mới.

@@ -11,6 +11,7 @@ from core.settings import normalize_settings
 from core.paginator import boundary_penalty
 
 W, H = 1080, 1920
+PREVIEW_SIZE = (360, 640)
 SAFE_BOTTOM = int(H * .86)
 
 
@@ -76,8 +77,13 @@ def layout_overlay(quote_text, credit_text, theme_index=0, pos_mode='bottom', ve
         cfont = get_font('segoeui.ttf', csize, workspace_dir)
         lines = wrap_text(quote_text, qfont, 768, draw)
         credits = wrap_text(credit_text, cfont, 768, draw)
-        qheight = max((draw.textbbox((0, 0), s, font=qfont, anchor='lt')[3] for s in lines), default=qsize)
-        cheight = max((draw.textbbox((0, 0), s, font=cfont, anchor='lt')[3] for s in credits), default=csize)
+        # Shared baseline bounds: diacritics must not shift each line's letter bodies.
+        qboxes = [draw.textbbox((0, 0), s, font=qfont, anchor='ls') for s in lines]
+        cboxes = [draw.textbbox((0, 0), s, font=cfont, anchor='ls') for s in credits]
+        qtop = min((box[1] for box in qboxes), default=-qsize)
+        ctop = min((box[1] for box in cboxes), default=-csize)
+        qheight = max((box[3] for box in qboxes), default=0) - qtop
+        cheight = max((box[3] for box in cboxes), default=0) - ctop
         qline, cline = math.ceil(qheight + qsize * .28), math.ceil(cheight + csize * .35)
         qh = len(lines) * qline
         ch = len(credits) * cline
@@ -95,7 +101,8 @@ def layout_overlay(quote_text, credit_text, theme_index=0, pos_mode='bottom', ve
     top = int(max(180, min(SAFE_BOTTOM - height, preferred + vertical_offset)))
     return dict(lines=lines, credits=credits, qfont=qfont, cfont=cfont, qline=qline, cline=cline,
                 top=top, bottom=top + height, height=height, quote_y=top + 80,
-                credit_y=top + 80 + qh + 40, quote_size=qsize)
+                credit_y=top + 80 + qh + 40, quote_size=qsize,
+                quote_baseline=top + 80 - qtop, credit_baseline=top + 80 + qh + 40 - ctop)
 
 
 def soft_outline(mask, style):
@@ -119,11 +126,11 @@ def soft_outline(mask, style):
     return layer
 
 
-def paint_outlined_text(image, entries, font, fill, style):
+def paint_outlined_text(image, entries, font, fill, style, anchor='lt'):
     mask = Image.new('L', image.size)
     pen = ImageDraw.Draw(mask)
     for x, y, text in entries:
-        pen.text((x, y), text, font=font, anchor='lt', fill=255)
+        pen.text((x, y), text, font=font, anchor=anchor, fill=255)
     image = Image.alpha_composite(image, soft_outline(mask, style))
     ink = Image.new('RGBA', image.size, fill)
     ink.putalpha(mask if fill[3] == 255 else mask.point([round(i * fill[3] / 255) for i in range(256)]))
@@ -174,19 +181,19 @@ def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', h
         draw.line((134, ornament_y, 194, ornament_y), fill=gold, width=2)
         draw.ellipse((206, ornament_y - 3, 212, ornament_y + 3), fill=gold)
     color = (64, 55, 43, 255) if paper else ((255, 251, 242, 255) if theme_index in (1, 3) else (250, 230, 191, 255))
-    y = layout['quote_y']
+    y = layout['quote_baseline']
     entries = []
     for line in layout['lines']:
         width = draw.textlength(line, font=layout['qfont'])
         x = (1036 - width) / 2 if centered else 134
         entries.append((x, y, line))
         y += layout['qline']
-    im = paint_outlined_text(im, entries, layout['qfont'], color, style)
+    im = paint_outlined_text(im, entries, layout['qfont'], color, style, anchor='ls')
     draw = ImageDraw.Draw(im)
     if layout['credits']:
-        y = layout['credit_y']
+        y = layout['credit_baseline']
         line_start = 438 if centered else 134
-        draw.line((line_start, y - 20, line_start + 160, y - 20), fill=accent, width=1)
+        draw.line((line_start, layout['credit_y'] - 20, line_start + 160, layout['credit_y'] - 20), fill=accent, width=1)
         entries = []
         for line in layout['credits']:
             x = (1036 - draw.textlength(line, font=layout['cfont'])) / 2 if centered else 134
@@ -196,7 +203,7 @@ def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', h
         ratio = min(1., credit_size / layout['quote_size'])
         credit_style = {**style, 'outline_width': round(style['outline_width'] * ratio),
                         'outline_blur': style['outline_blur'] * ratio}
-        im = paint_outlined_text(im, entries, layout['cfont'], (111, 83, 49, 255) if paper else (238, 220, 187, 255), credit_style)
+        im = paint_outlined_text(im, entries, layout['cfont'], (111, 83, 49, 255) if paper else (238, 220, 187, 255), credit_style, anchor='ls')
     return im
 
 
@@ -219,7 +226,8 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
     # Reject stale files even if a plan was queued before a source edit.
     plan = load_plan(plan['plan_id'], workspace_dir)
     start = time.time()
-    width, height = (540, 960) if preview else (W, H)
+    width, height = PREVIEW_SIZE if preview else (W, H)
+    direct_preview = preview and len(plan['scenes']) <= 4
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     partial = output_path.with_name(output_path.stem + '.partial.mp4')
@@ -237,9 +245,11 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
                 vf = (f'trim=start={scene["source_start"]}:end={scene["source_end"]},'
                       f'setpts=(PTS-STARTPTS)/{scene["speed"]},scale={width}:{height}:force_original_aspect_ratio=increase,'
                       f'crop={width}:{height},setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.2,trim=duration={duration},format=yuv420p')
-                _execute([ffmpeg, '-y', '-v', 'error', '-threads', '2', '-i', scene['video_path'], '-an', '-vf', vf,
-                          '-threads', '2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-t', str(duration), target])
-                clips.append(target)
+                if not direct_preview:
+                    _execute([ffmpeg, '-y', '-v', 'error', '-threads', '2', '-i', scene['video_path'], '-an', '-vf', vf,
+                              '-threads', '2', '-c:v', 'libx264', '-preset', 'ultrafast' if preview else 'veryfast',
+                              '-crf', '24' if preview else '18', '-t', str(duration), target])
+                clips.append(scene['video_path'] if direct_preview else target)
                 overlay = Path(tmp) / f'overlay_{i}.png'
                 picture = scene_overlay(plan, scene, workspace_dir)
                 if preview:
@@ -249,15 +259,27 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
             if progress_callback:
                 progress_callback(65, 'Đang ghép cảnh, chữ và nhạc…')
             cmd = [ffmpeg, '-y', '-v', 'error', '-filter_complex_threads', '1']
-            for clip in clips:
-                cmd += ['-threads', '2', '-i', clip]
+            for index, clip in enumerate(clips):
+                cmd += ['-threads', '2']
+                if direct_preview:
+                    scene = plan['scenes'][index]
+                    cmd += ['-ss', str(scene['source_start']), '-t', str(scene['source_end'] - scene['source_start'])]
+                cmd += ['-i', clip]
             for overlay in overlays:
                 cmd += ['-loop', '1', '-framerate', '30', '-i', overlay]
             music = plan.get('music')
             has_music = bool(music and settings['music_volume'] > 0)
             if has_music:
                 cmd += ['-stream_loop', '-1', '-i', music['path']]
-            parts = [f'[{i}:v]settb=AVTB,setpts=PTS-STARTPTS,format=yuv444p,fps=30[b{i}]' for i in range(len(clips))]
+            parts = []
+            for i, scene in enumerate(plan['scenes']):
+                normalize = ''
+                if direct_preview:
+                    normalize = (f'setpts=(PTS-STARTPTS)/{scene["speed"]},'
+                                 f'scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},'
+                                 f'setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.2,'
+                                 f'trim=duration={scene["end"] - scene["start"]},')
+                parts.append(f'[{i}:v]{normalize}settb=AVTB,setpts=PTS-STARTPTS,format=yuv444p,fps=30[b{i}]')
             last = 'b0'
             for i in range(1, len(clips)):
                 nxt = f'cross{i}'
@@ -272,8 +294,8 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
             if has_music:
                 parts.append(f'[{len(clips) * 2}:a]asetpts=PTS-STARTPTS,volume={settings["music_volume"]},afade=t=in:st=0:d=0.6,afade=t=out:st={max(0, plan["duration"] - 1.2)}:d=1.2[a]')
             cmd += ['-filter_complex', ';'.join(parts), '-map', f'[{last}]']
-            cmd += ['-map', '[a]', '-c:a', 'aac', '-b:a', '192k'] if has_music else ['-an']
-            cmd += ['-threads', '2', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22' if preview else '19',
+            cmd += ['-map', '[a]', '-c:a', 'aac', '-b:a', '96k' if preview else '192k'] if has_music else ['-an']
+            cmd += ['-threads', '2', '-c:v', 'libx264', '-preset', 'ultrafast' if preview else 'veryfast', '-crf', '26' if preview else '19',
                     '-pix_fmt', 'yuv420p', '-r', '30', '-t', str(plan['duration']), '-movflags', '+faststart', str(partial)]
             _execute(cmd)
         partial.replace(output_path)
