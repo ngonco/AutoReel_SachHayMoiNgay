@@ -54,7 +54,7 @@
         <div class="field">
           <label for="quoteInput">
             Câu nói chính:
-            <span class="hint">Nhấn Enter: mỗi dòng một cảnh</span>
+            <span class="hint" id="quoteEnterHint">Nhấn Enter: mỗi dòng một cảnh</span>
           </label>
           <div class="quote-download-panel" aria-live="polite">
             <strong id="quoteDownloadStatus">○ CHƯA TẢI VIDEO</strong>
@@ -80,7 +80,7 @@
         </div>
 
         <div class="field">
-          <div class="scene-heading"><strong>Kịch bản Reel</strong><span class="panel-sub">Bấm cảnh → chọn footage bên dưới → xem ngay cảnh vừa đổi</span></div>
+          <div class="scene-heading"><strong>Kịch bản Reel</strong><span class="panel-sub" id="sceneHelp">Bấm cảnh → chọn footage bên dưới → xem ngay cảnh vừa đổi</span></div>
           <div id="sceneList" class="scene-list"></div>
           <div class="footage-toolbar">
             <strong id="footageTargetLabel">Chọn footage cho cảnh 1</strong>
@@ -129,7 +129,7 @@
         <div class="btn-group library-actions"><button class="btn small" id="btnListenMusic">▶ Nghe nhạc</button><button class="btn small" id="btnDownloadMusic">⬇ Tải/bổ sung kho nhạc</button><button class="btn small" id="btnOpenMusicFolder">📂 Mở kho nhạc</button></div>
         <p id="musicLibraryStatus" class="panel-sub" role="status"></p>
       </div>
-      <div class="panel">
+      <div class="panel" id="legacyDesignPanel">
         <div class="panel-header">
           <div class="panel-title">03 / Vị trí chữ & Tránh mặt Phật</div>
           <div class="badge gold" id="posBadge">AI: Nửa Dưới</div>
@@ -194,12 +194,12 @@
       <!-- 04 / PHÂN TRANG & THỜI LƯỢNG -->
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">04 / Phân đoạn chữ & Thời lượng</div>
+          <div class="panel-title" id="timingPanelTitle">04 / Phân đoạn chữ & Thời lượng</div>
           <div class="panel-sub" id="paginationBadge">2 Trang (Slides)</div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <label class="switch-label" style="margin:0;">
+          <label class="switch-label" id="autoPaginateLabel" style="margin:0;">
             <input type="checkbox" id="autoPaginateCheck" checked> Tự chia cảnh theo dấu câu và từ nối
           </label>
 
@@ -213,6 +213,11 @@
           </div>
         </div>
 
+        <div id="scrollControls" style="display:none;margin-top:16px;">
+          <label for="scrollSpeedSlider">Tốc độ chữ · Chậm–Nhanh: <b id="scrollSpeedVal">1.00×</b></label>
+          <input type="range" id="scrollSpeedSlider" min="65" max="150" value="100" step="5" style="width:100%;">
+          <p class="panel-sub">Khung cố định 4 dòng ở phần dưới video. Chữ dài cuộn liên tục và mờ dần ở hai mép; Enter giữ ngắt dòng. Tên trang nằm cuối nội dung. Footage đổi khoảng 7 giây, chữ vẫn chạy tiếp.</p>
+        </div>
         <p id="totalDuration" class="timeline-summary">Đang tính thời lượng…</p>
         <!-- Danh sách lấy từ kế hoạch chung của máy chủ -->
         <div class="slide-tabs" id="slideTabs">
@@ -251,6 +256,10 @@
           <div class="template-btn" data-theme="4">
             <div class="template-thumb" style="background:#fff8e9; border-bottom: 3px solid #ab8c60;"></div>
             <span>05 Sen Giấy</span>
+          </div>
+          <div class="template-btn" data-theme="5">
+            <div class="template-thumb" style="background:linear-gradient(#13231d,#39453b);border-bottom:3px solid #fffaef;"></div>
+            <span>06 Chữ Cuộn Tinh Tế</span>
           </div>
         </div>
       </div>
@@ -316,7 +325,7 @@
           <button class="btn small" id="btnWatchRendered" style="flex:1; display:none;">👁 Xem lại video vừa render</button>
         </div>
 
-        <div style="font-size:11px; color:var(--text-dim); line-height:1.5; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+        <div id="previewHelp" style="font-size:11px; color:var(--text-dim); line-height:1.5; padding:8px 12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
           ✦ <strong>Mẹo Reels:</strong> Câu dài tự chia cảnh và tăng thời lượng đủ đọc. Nháp tức thì dùng cùng kế hoạch và lớp chữ của bản Full HD. Clip mới cần chuẩn bị bản nhẹ một lần; sau đó đổi chữ không phải dựng lại Reel. Chuyển cảnh và màu nháp có thể khác nhẹ bản xuất.
         </div>
       </div>
@@ -348,6 +357,7 @@
     </div>
   </div>
 
+  <script src="/scroll_player.js"></script>
   <script src="/draft_player.js"></script>
   <script src="/app.js"></script>
 </body>

@@ -1,3 +1,17 @@
+# Kết quả kiểm tra V12 — 2026-10-29
+
+- Mã cuối: **78/78 kiểm tra Python đạt** (92,2s), năm bộ kiểm tra Node đạt, compileall và git diff --check đạt. Bao gồm giữ Enter/đoạn trống, tiếng Việt, token dài, PNG giới hạn512px, mask mép, đầu/cuối giữ2s, thay tốc độ, lưu/restoration settings, footage reservation/rollback/commit và hồi quy v11.
+- Build `python -X utf8 build_onefile.py` thành công: **AutoReelSachHay_v12.exe**, 203.768.068 byte. Launcher BAT/VBS ưu tiên v12, giữ phiên/EXE trước. Bundle có Segoe UI Semibold; không đưa font/EXE/media vào Git.
+- `python -X utf8 verify_v12.py --fullhd --hold` đạt trên **EXE v12 mở qua VBS**, PID/đường dẫn thực được kiểm tra. Profile riêng `.cache/v12_smoke_1793261206301475700`, báo cáo `verification.json`. Không dùng thiết lập hoặc lịch sử footage thật.
+- Quote dài có đoạn trống: **20,8s / 3 footage**, preview360×640 (11,41s dựng), Full HD1080×1920 (34,60s dựng). Decode toàn file đạt; nhạc PCM RMS **0,0713**. So khớp glyph với renderer tại1s, điểm đổi footage, giữa, gần cuối: **96,58–97,56% pixel nét chữ** qua ngưỡng nén; không có chữ ngoài khung. Phát hiện và sửa rounding tọa độ lẻ của overlay bằng format=yuv444 trước encode cuối.
+- Câu ngắn không credit: **4,0s / 1 footage**, text_track.distance=0, xuất Full HD đạt. Câu dài hơn: **35,2s / 5 footage**, preview qua nhánh chuẩn hóa tuần tự đạt (36,15s dựng). Preview không thay counts, export chỉ tăng số footage sau thành công; rollback lỗi được kiểm tra tự động.
+- Mở lại qua launcher trên cùng profile: theme5, tốc độ0,80×, quote có Enter, quote_size84 và vertical_offset−100 được giữ. Năm theme cũ lập kế hoạch và tạo PNG được. Static ảnh của từng footage nằm trong x119..961/y1325..1581.
+- Giao diện thật từ EXE: preset06 hiện, hướng dẫn Enter đổi theo style, panel thiết kế cũ ẩn. Chuyển qua01 cho thấy cỡ84/offset−100 còn nguyên; quay lại06 giữ0,80×. Phát nháp có tiếng thật qua Analyser (RMS mẫu **0,0314**), pause và tua đến22,47s chuyển đúng Footage4/4, không reset chữ.
+- Kiểm tra thêm hai clip thật IMG_3381.MOV/IMG_3387.MOV được sao chép vào profile riêng: xuất20,8s/3 footage qua JobManager của EXE đạt. Đã xem ảnh đầu/giữa/cuối: chữ nhỏ, rõ trên footage sáng; credit ở cuối, mép mờ và khung cố định. Ảnh minh họa `test_renders/verification/v12_chu_cuon.jpg`; video `output_videos/Reel_fb3c04d3eb33.mp4` bên trong profile thử, không tính vào lịch sử thật.
+- Kiểm tra socket nội bộ cần chạy ngoài giới hạn mạng của môi trường kiểm thử; lượt chạy bị chặn được chạy lại đầy đủ và đạt, không bỏ qua test.
+
+---
+
 # Kết quả kiểm tra — 2026-10-27
 
 Đợt nâng cấp: dựng reel nhiều cảnh, Play toàn bộ câu nói, template chung preview/export và backup mã nguồn.

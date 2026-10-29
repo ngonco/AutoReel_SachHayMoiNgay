@@ -1,8 +1,9 @@
 # Auto Reel Sách Hay Mỗi Ngày
 
-Ứng dụng Windows dựng reel dọc với câu nói tiếng Việt, video tượng Phật, năm template và kho nhạc nền offline.
+Ứng dụng Windows dựng reel dọc với câu nói tiếng Việt, video tượng Phật, sáu template và kho nhạc nền offline.
 
 - Câu dài tự chia thành nhiều cảnh, giữ đủ nội dung và dấu câu.
+- Mẫu **06 Chữ Cuộn Tinh Tế** giữ một dải chữ liên tục trong khung bốn dòng, còn footage chuyển độc lập khoảng 7 giây/clip.
 - Mỗi cảnh dùng một clip khác; clip ngắn được làm chậm vừa đủ.
 - Nháp tức thì phát footage nhẹ và lớp chữ từ renderer, không dựng MP4 toàn Reel sau mỗi lần sửa.
 - Xuất Full HD 1080×1920 từ chính kế hoạch đã xem trước.
@@ -10,7 +11,7 @@
 
 ## Chạy
 
-Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v11.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe, font và âm thanh bên trong. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
+Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v12.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe và font bên trong. Nhạc nằm trong kho offline riêng. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
 
 Chạy từ mã nguồn trên Windows, Python 3.11:
 
@@ -25,7 +26,7 @@ Font dùng Times New Roman Bold và Segoe UI có sẵn trong `C:/Windows/Fonts`.
 
 ## Sử dụng
 
-1. App mở vào câu chưa tải đầu tiên. Chọn câu nói, template và vị trí chữ. Nhấn Enter trong câu nói để chia mỗi dòng thành một cảnh riêng; dòng trống được bỏ qua.
+1. App mở vào câu chưa tải đầu tiên. Chọn câu nói và template. Với mẫu 01–05, Enter chia mỗi dòng thành một cảnh riêng; với mẫu 06, Enter giữ ngắt dòng/đoạn trong cùng dải chữ cuộn.
 2. Trong **Kịch bản Reel & Video tượng Phật nền**, bấm cảnh rồi chọn footage ngay bên dưới. Tìm theo tên hoặc lọc clip phù hợp; clip gợi ý vẫn tuân thủ chống lặp và ưu tiên ít lượt dùng.
 3. Đổi footage tự phát cảnh vừa đổi. Bấm **Phát toàn Reel** để xem liên tục; có thể dừng, tua và phát lại. Clip mới cần chuẩn bị bản nhẹ một lần, dùng lại sau restart.
 4. Bấm **Tải video**, chọn nơi lưu và tên file. Ứng dụng tự xuất Full HD nếu cần; nếu đã xuất đúng thiết lập trong phiên này thì lưu ngay. Nút **Xuất nhiều Reel** trên thanh đầu xuất toàn bộ danh sách câu; nút Xuất Reel riêng đã bỏ.
@@ -42,7 +43,9 @@ python -X utf8 build_onefile.py
 
 `verify_samples.py` cần kho clip thật và xuất ba mẫu (một, hai, ba cảnh) ở cả bản nhẹ và Full HD. Kết quả ở `output_videos/verification`; ảnh kiểm tra và báo cáo ở `test_renders/verification`.
 
-Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng, âm thanh và ba font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE trước đó được giữ ở `AutoReelSachHay_v11.previous.exe`.
+Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng cùng bốn font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE v12 trước đó được giữ ở `AutoReelSachHay_v12.previous.exe`; giữ nguyên EXE/phiên cũ.
+
+Kiểm tra bản hiện hành qua launcher bằng `python -X utf8 verify_v12.py --fullhd --hold`. Script tạo profile riêng, không sử dụng lịch sử footage hoặc thiết lập thật.
 
 Bắt buộc sau mỗi đợt sửa code, kể cả giao diện: đóng gói lại EXE từ code cuối cùng, mở qua launcher và kiểm tra chức năng vừa sửa trên bản đóng gói trước khi bàn giao. Không giao EXE cũ sau khi chỉ kiểm tra mã nguồn. Chỉ sửa tài liệu thì không cần build lại.
 

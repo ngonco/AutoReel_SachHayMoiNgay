@@ -209,6 +209,8 @@ def render_overlay(quote_text, credit_text='Thanh Vị Sách Hay Mỗi Ngày', h
 
 def overlay_key(plan, scene):
     import hashlib, json
+    if plan.get('text_track'):
+        return hashlib.sha256(json.dumps(dict(version=plan['version'],track=plan['text_track']),sort_keys=True,ensure_ascii=False).encode()).hexdigest()[:32]
     keys = ('credit','theme_index','vertical_offset','quote_size','credit_size','shade','autofit',
             'outline_enabled','outline_color','outline_width','outline_blur','outline_opacity')
     return hashlib.sha256(json.dumps(dict(version=plan['version'],text=scene['text'],pos=scene['resolved_pos'],
@@ -217,6 +219,12 @@ def overlay_key(plan, scene):
 
 
 def scene_overlay(plan, scene, workspace_dir):
+    if plan.get('text_track'):
+        from core.scroll_text import scroll_frame
+        image = Image.new('RGBA',(W,H))
+        track = plan['text_track']
+        image.alpha_composite(scroll_frame(track,scene['text_start']+.21,workspace_dir), (track['rect']['x'],track['rect']['y']))
+        return image
     s = plan['settings']
     return render_overlay(scene['text'], s['credit'], theme_index=s['theme_index'], pos_mode=scene['resolved_pos'],
                           vertical_offset=s['vertical_offset'], quote_size=s['quote_size'], credit_size=s['credit_size'],
@@ -242,6 +250,7 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
     partial = output_path.with_name(output_path.stem + '.partial.mp4')
     ffmpeg = tool_path('ffmpeg')
     settings = plan['settings']
+    scrolling = bool(plan.get('text_track'))
     try:
         with tempfile.TemporaryDirectory(prefix='reel_render_') as tmp:
             clips, overlays = [], []
@@ -259,11 +268,17 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
                               '-threads', '2', '-c:v', 'libx264', '-preset', 'ultrafast' if preview else 'veryfast',
                               '-crf', '24' if preview else '18', '-t', str(duration), target])
                 clips.append(scene['video_path'] if direct_preview else target)
-                overlay = Path(tmp) / f'overlay_{i}.png'
-                picture = scene_overlay(plan, scene, workspace_dir)
-                if preview:
-                    picture = picture.resize((width, height), Image.Resampling.LANCZOS)
-                picture.save(overlay)
+                if not scrolling:
+                    overlay = Path(tmp) / f'overlay_{i}.png'
+                    picture = scene_overlay(plan, scene, workspace_dir)
+                    if preview:
+                        picture = picture.resize((width, height), Image.Resampling.LANCZOS)
+                    picture.save(overlay)
+                    overlays.append(str(overlay))
+            if scrolling:
+                from core.scroll_text import write_scroll_video
+                overlay = Path(tmp)/'scroll.mov'
+                write_scroll_video(plan['text_track'],overlay,workspace_dir,width/W,progress_callback)
                 overlays.append(str(overlay))
             if progress_callback:
                 progress_callback(65, 'Đang ghép cảnh, chữ và nhạc…')
@@ -275,7 +290,7 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
                     cmd += ['-ss', str(scene['source_start']), '-t', str(scene['source_end'] - scene['source_start'])]
                 cmd += ['-i', clip]
             for overlay in overlays:
-                cmd += ['-loop', '1', '-framerate', '30', '-i', overlay]
+                cmd += (['-threads','2','-i',overlay] if scrolling else ['-loop', '1', '-framerate', '30', '-i', overlay])
             music = plan.get('music')
             has_music = bool(music and settings['music_volume'] > 0)
             if has_music:
@@ -294,14 +309,19 @@ def render_plan(plan, output_path, workspace_dir, preview=False, progress_callba
                 nxt = f'cross{i}'
                 parts.append(f'[{last}][b{i}]xfade=transition=fade:duration=0.4:offset={plan["scenes"][i]["start"]}[{nxt}]')
                 last = nxt
-            for i, scene in enumerate(plan['scenes']):
+            if scrolling:
+                rect = plan['text_track']['rect']
+                x, y = round(rect['x']*width/W), round(rect['y']*height/H)
+                parts.append(f'[{last}][{len(clips)}:v]overlay={x}:{y}:format=yuv444:eof_action=pass[scrolltext]')
+                last = 'scrolltext'
+            for i, scene in enumerate([] if scrolling else plan['scenes']):
                 st, et = scene['text_start'], scene['text_end']
                 parts.append(f'[{len(clips) + i}:v]format=rgba,fade=t=in:st={st}:d=0.2:alpha=1,fade=t=out:st={et - .2}:d=0.2:alpha=1[o{i}]')
                 nxt = f'letter{i}'
                 parts.append(f'[{last}][o{i}]overlay=0:0:eof_action=pass:enable=\'gte(t,{st})*lt(t,{et})\'[{nxt}]')
                 last = nxt
             if has_music:
-                parts.append(f'[{len(clips) * 2}:a]asetpts=PTS-STARTPTS,volume={settings["music_volume"]},afade=t=in:st=0:d=0.6,afade=t=out:st={max(0, plan["duration"] - 1.2)}:d=1.2[a]')
+                parts.append(f'[{len(clips) + len(overlays)}:a]asetpts=PTS-STARTPTS,volume={settings["music_volume"]},afade=t=in:st=0:d=0.6,afade=t=out:st={max(0, plan["duration"] - 1.2)}:d=1.2[a]')
             cmd += ['-filter_complex', ';'.join(parts), '-map', f'[{last}]']
             cmd += ['-map', '[a]', '-c:a', 'aac', '-b:a', '96k' if preview else '192k'] if has_music else ['-an']
             cmd += ['-threads', '2', '-c:v', 'libx264', '-preset', 'ultrafast' if preview else 'veryfast', '-crf', '26' if preview else '19',

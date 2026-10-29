@@ -1,13 +1,21 @@
 # Hướng dẫn Auto Reel Sách Hay Mỗi Ngày
 
-Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v7.exe`.
+Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v12.exe`.
 
-1. Chọn hoặc nhập toàn bộ câu nói. Nhấn Enter để mỗi dòng có chữ thành một cảnh riêng (kể cả khi tắt tự chia cảnh); dòng trống được bỏ qua. Chọn clip cho cảnh đầu.
-2. Bật **Tự chia câu dài thành nhiều cảnh**. Các phần sau tự dùng clip khác trong kho; clip ngắn được làm chậm.
-3. Chọn một trong năm template, cỡ chữ, credit và vị trí chữ.
+1. Chọn hoặc nhập toàn bộ câu nói. Với mẫu 01–05, Enter tạo mỗi dòng có chữ thành một cảnh riêng (kể cả khi tắt tự chia cảnh); dòng trống được bỏ qua. Chọn clip cho cảnh đầu.
+2. Với mẫu 01–05, bật **Tự chia cảnh theo dấu câu và từ nối** nếu muốn tự phân đoạn. Các phần sau dùng clip khác trong kho; clip ngắn được làm chậm. Mẫu 06 giữ chữ liên tục và tự chia riêng footage.
+3. Chọn một trong sáu template. Mẫu 01–05 cho chỉnh cỡ chữ, credit và vị trí; mẫu 06 dùng khung chữ nhỏ cố định như hướng dẫn bên dưới.
 4. Xem **Kịch bản reel** để kiểm tra từng phần chữ, clip và thời lượng. Các nút 10/12/15 giây đặt thời lượng tối thiểu; câu dài được tăng thời gian để đọc hết.
-5. Bấm **Phát toàn bộ reel**, chờ dựng bản nhẹ lần đầu. Có đầy đủ cảnh, chữ, chuông thiền và chuyển cảnh giống video xuất. Dùng thanh video để tua; bấm tên cảnh để nhảy đến cảnh đó.
-6. Bấm **Tải video** trên thanh đầu ứng dụng, cạnh nút thư mục, rồi chọn nơi lưu. Ứng dụng tự xuất Full HD nếu chưa có bản đúng thiết lập trong phiên này; nếu đã xuất thì lưu ngay. Có thể bấm **Xuất reel** để giữ trong thư mục kết quả như trước.
+5. Bấm **Phát toàn Reel** để xem nháp trực tiếp với chữ, chuyển cảnh và nhạc offline. Clip mới cần chuẩn bị bản nhẹ một lần. Dùng thanh tua hoặc bấm tên cảnh/footage để nhảy đến đoạn đó.
+6. Bấm **Tải video** trên thanh đầu ứng dụng, cạnh nút thư mục, rồi chọn nơi lưu. Ứng dụng tự xuất Full HD nếu chưa có bản đúng thiết lập trong phiên này; nếu đã xuất thì lưu ngay.
+
+## 06 Chữ Cuộn Tinh Tế
+
+Chọn mẫu **06 Chữ Cuộn Tinh Tế** trong mục phong cách. Chữ trắng ngà nhỏ, nét vừa, có viền tối mảnh, nằm trong khung cố định khoảng 69–82% chiều cao video. Mẫu này không có bảng nền, hoa văn hoặc đường phân cách.
+
+Nội dung vừa khung đứng yên; nội dung dài giữ phần đầu 2 giây, cuộn lên liên tục và dừng ở phần cuối ít nhất 2 giây. Chữ biến mất dần ở mép trên và hiện dần ở mép dưới. Nhấn Enter giữ ngắt dòng/đoạn, không tạo cảnh chữ mới. Tên trang trong ô Kênh/Nguồn nằm cuối cùng, cuộn cùng nội dung; để trống nếu không muốn hiện.
+
+Thanh **Tốc độ chữ · Chậm–Nhanh** chỉnh từ 0,65× đến 1,50×. App tự tính thời lượng đủ đọc, các nút 10/12/15 giây vẫn là thời lượng tối thiểu. Footage chuyển khoảng 7 giây/clip; vẫn chọn và thay từng footage, chữ không bắt đầu lại khi chuyển clip. Vị trí, cỡ chữ và hiệu ứng của mẫu được cố định; chọn lại mẫu 01–05 để dùng các điều khiển thiết kế cũ, giá trị cũ được giữ nguyên.
 
 Tên file gợi ý là 5 từ đầu câu nói, có dấu tiếng Việt và đuôi `.mp4`; có thể sửa tên. Hộp thoại nhớ thư mục sau khi xác nhận, kể cả khi mở lại ứng dụng. Hủy thì không dựng video. Tải lại bản vừa xuất không tính thêm lượt footage. Nếu lưu lỗi, bản Full HD vẫn còn trong ứng dụng để thử tải sang nơi khác. Thay đổi nội dung trong lúc dựng không đổi file đã yêu cầu tải.
 

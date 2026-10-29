@@ -65,11 +65,11 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         try:
             path = unquote(urlparse(self.path).path)
-            if path in ('/', '/index.html', '/app.js', '/draft_player.js', '/style.css'):
+            if path in ('/', '/index.html', '/app.js', '/draft_player.js', '/scroll_player.js', '/style.css'):
                 name = 'index.html' if path == '/' else path[1:]
-                return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'draft_player.js':'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
+                return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'scroll_player.js':'application/javascript; charset=utf-8', 'draft_player.js':'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
             if path == '/api/health':
-                return self._send_json(dict(success=True, version='multi-scene-v11', pid=os.getpid()))
+                return self._send_json(dict(success=True, version='multi-scene-v12', pid=os.getpid()))
             if path == '/api/quotes':
                 return self._send_json(quote_sync.get_quotes())
             if path == '/api/quote_catalog':
@@ -111,13 +111,35 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 return self._send_json(read_settings())
             if path.startswith('/api/jobs/'):
                 return self._send_json(jobs.get(path.rsplit('/', 1)[-1]))
+            if path.startswith('/api/scroll_asset/'):
+                _, _, _, plan_id, part = path.split('/')
+                plan = load_plan(plan_id,BASE_DIR)
+                track = plan.get('text_track')
+                if not track:raise ValueError('Kế hoạch không có chữ cuộn.')
+                from core.scroll_text import tile_path, edge_mask
+                if part == 'mask':
+                    target = BASE_DIR/'.cache'/'scroll_text'/f'mask-{track["asset_key"]}.png'
+                    target.parent.mkdir(parents=True,exist_ok=True)
+                    if not target.is_file():
+                        import uuid
+                        tmp=target.with_name(uuid.uuid4().hex+'.png')
+                        from PIL import Image
+                        mask=edge_mask(track['rect']['width'],track['rect']['height'],track['edge_fade'])
+                        picture=Image.new('RGBA',mask.size,(255,255,255,255));picture.putalpha(mask);picture.save(tmp)
+                        tmp.replace(target)
+                else:
+                    index = int(part)
+                    if index < 0 or index >= len(track['tiles']):raise ValueError('Mảnh chữ không hợp lệ.')
+                    target = tile_path(track,index,BASE_DIR)
+                return self._serve_file(target,'image/png')
             if path.startswith('/api/overlay/'):
                 _, _, _, plan_id, index = path.split('/')
                 plan = load_plan(plan_id, BASE_DIR)
                 scene = plan['scenes'][int(index)]
                 folder = BASE_DIR / '.cache' / 'overlays'
                 folder.mkdir(parents=True, exist_ok=True)
-                target = folder / (overlay_key(plan,scene)+'.png')
+                suffix = f'-{scene["index"]}' if plan.get('text_track') else ''
+                target = folder / (overlay_key(plan,scene)+suffix+'.png')
                 if not target.is_file():
                     # Separate temporary files avoid races between parallel browser requests.
                     import uuid

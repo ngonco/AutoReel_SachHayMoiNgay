@@ -3,13 +3,14 @@ import hashlib
 import json
 from pathlib import Path
 import unicodedata
+import math
 from core.media import probe, resource_path
 from core.paginator import split_into_slides, calculate_slide_timings
 from core.settings import normalize_settings, load_settings
 from core.footage_pool import FootagePool
 from core.persistence import atomic_json
 
-PLAN_VERSION = 'multi-scene-v11-audible-preview-manual-download-status-no-bell-1'
+PLAN_VERSION = 'multi-scene-v12-continuous-elegant-scroll-1'
 
 
 def fingerprint(path):
@@ -23,7 +24,9 @@ def build_plan(payload, workspace_dir, detector):
         payload = {**payload, 'background_video_directory': load_settings(workspace_dir)['background_video_directory']}
     normalized = normalize_settings(payload)
     settings = {k:v for k,v in normalized.items() if k not in ('quote','quote_index','video_path','safe_zone','last_save_directory','scene_video_preferences','imported_video_paths')}
-    text = '\n'.join(' '.join(line.split()) for line in unicodedata.normalize('NFC', str(payload.get('quote') or '')).splitlines() if line.strip())
+    raw_text = unicodedata.normalize('NFC', str(payload.get('quote') or ''))
+    scrolling = settings['theme_index'] == 5
+    text = '\n'.join(' '.join(line.split()) for line in raw_text.splitlines() if scrolling or line.strip()).strip()
     if not text:
         raise ValueError('Hãy nhập nội dung câu nói.')
     if len(text) > 20000:
@@ -45,8 +48,21 @@ def build_plan(payload, workspace_dir, detector):
     if not chosen:
         raise ValueError('Kho video trống. Hãy thêm clip hoặc chọn video khác.')
     if all(Path(v['path']).resolve()!=Path(chosen['path']).resolve() for v in videos):videos.append(chosen)
-    slides = split_into_slides(text, settings['auto_paginate'])
-    timings = calculate_slide_timings(slides, settings['duration'])
+    track = None
+    if scrolling:
+        from core.scroll_text import build_track
+        track = build_track(text, settings['credit'], settings, workspace_dir)
+        frames = round(track['duration']*30)
+        count = max(1, math.floor(track['duration']/7+.5))
+        slides = [text]*count
+        timings = []
+        for i in range(count):
+            start, end = (frames*i//count)/30, (frames*(i+1)//count)/30
+            timings.append(dict(slide_index=i,text=text,start=max(0,start-(.2 if i else 0)),
+                                end=end+(.2 if i<count-1 else 0),text_start=start,text_end=end,fade_in=0,fade_out=0))
+    else:
+        slides = split_into_slides(text, settings['auto_paginate'])
+        timings = calculate_slide_timings(slides, settings['duration'])
     avoid_ids = payload.get('previous_footage_ids', [])
     if not isinstance(avoid_ids, list) or any(not isinstance(key, str) or len(key) != 24 or
                                              any(c not in '0123456789abcdef' for c in key) for key in avoid_ids):
@@ -64,15 +80,17 @@ def build_plan(payload, workspace_dir, detector):
         scenes.append({**timing, 'index': i, 'video_name': source['name'], 'footage_id': footage_id,
                        'video_path': str(Path(source['path']).resolve()), 'source_start': trim_start,
                        'source_end': trim_start + take, 'speed': take / needed,
-                       'resolved_pos': source.get('recommended_pos', 'bottom') if settings['pos_mode'] == 'auto' else settings['pos_mode'],
+                       'resolved_pos': 'bottom' if scrolling else (source.get('recommended_pos', 'bottom') if settings['pos_mode'] == 'auto' else settings['pos_mode']),
                        'source': fingerprint(source['path']), 'source_info': info,
                        'thumb_url': source.get('thumb_url', ''), 'suggestion':pool_info['scene_suggestions'][i]})
     from core.music_library import choose_music
     music,music_details=choose_music(workspace_dir,settings,text,str(payload.get('previous_music_path') or ''))
-    mode = 'manual_lines' if '\n' in text else ('auto' if settings['auto_paginate'] else 'single')
+    mode = 'continuous_scroll' if scrolling else ('manual_lines' if '\n' in text else ('auto' if settings['auto_paginate'] else 'single'))
     plan = dict(version=PLAN_VERSION, settings=settings, quote=text, segmentation_mode=mode, scenes=scenes, footage_pool=pool_info,
                 duration=timings[-1]['end'], transition=.4,
                 music=fingerprint(music) if music else None,music_details=music_details)
+    if track:
+        plan['text_track'] = track
     from core.renderer import overlay_key
     for scene in scenes:
         scene['overlay_key'] = overlay_key(plan, scene)

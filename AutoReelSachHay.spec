@@ -9,7 +9,7 @@ if not ffmpeg:
 media_bin = Path(ffmpeg).parent
 # Shared FFmpeg builds need their adjacent DLLs; retain their relative folder.
 data = [(str(root / 'ui'), 'ui')]
-for font in ['timesbd.ttf', 'segoeui.ttf', 'segoeuib.ttf']:
+for font in ['timesbd.ttf', 'segoeui.ttf', 'segoeuib.ttf', 'seguisb.ttf']:
     candidate = root / 'assets' / 'fonts' / font
     if not candidate.exists():
         candidate = Path('C:/Windows/Fonts') / font

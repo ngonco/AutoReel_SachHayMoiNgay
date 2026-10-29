@@ -2,7 +2,7 @@
 // The server owns segmentation, timing, fonts, scenes and rendering.
 const $ = id => document.getElementById(id);
 const canvas = $('previewCanvas'), ctx = canvas.getContext('2d'), player = $('previewVideo');
-const THEME_NAMES = ['Thiền Vàng', 'Tinh Khôi', 'Kinh Điển', 'Điện Ảnh', 'Sen Giấy'];
+const THEME_NAMES = ['Thiền Vàng', 'Tinh Khôi', 'Kinh Điển', 'Điện Ảnh', 'Sen Giấy', 'Chữ Cuộn Tinh Tế'];
 const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null, plan: null,
   revision: 0, planPromise: null, selectedScene: 0, loadedPlan: null, loadedKind: null,
   lastRenderedUrl: null, lastExport: null, previewUrl: null, busyPreview: false, ready: false,
@@ -12,7 +12,7 @@ const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null,
   previewRequest:null, preparedPreviewPlan:null, pendingScenePlayback:null,
   musicTracks:[],previousMusicPath:'',
   settings: {credit_size:20, quote_size:68, theme_index:0, pos_mode:'auto', vertical_offset:0,
-    shade:.7, duration:12, auto_paginate:true, autofit:true, music_volume:.85,
+    shade:.7, duration:12, auto_paginate:true, autofit:true, music_volume:.85,scroll_speed:1,
     outline_enabled:true, outline_color:'auto', outline_width:4, outline_blur:8, outline_opacity:.85,
     background_video_directory:'',scene_video_preferences:{},imported_video_paths:[],music_mode:'random',music_path:'',music_seed:''}};
 let saveTimer, planTimer, warmPreviewTimer;
@@ -84,10 +84,11 @@ function invalidate(options={}) {
   if (!state.ready) return;
   const quote=$('quoteInput').value.normalize('NFC').trim().split(/\s+/).join(' ');
   const content=$('quoteInput').value.normalize('NFC');
-  const structureChanged=state.preferencesContent!==undefined&&(state.preferencesContent!==content||state.preferencePagination!==state.settings.auto_paginate);
+  const structureChanged=state.preferencesContent!==undefined&&(state.preferencesContent!==content||state.preferencePagination!==state.settings.auto_paginate||state.preferenceTheme!==undefined&&state.preferenceTheme!==state.settings.theme_index);
   if(structureChanged)
     state.settings.scene_video_preferences={};
   state.preferencesContent=content;state.preferencePagination=state.settings.auto_paginate;
+  state.preferenceTheme=state.settings.theme_index;
   if(structureChanged){state.currentQuoteIndex=state.quotes.findIndex(q=>quoteIdentity(q.quote)===quoteIdentity(content));populateQuotes();}
   if(quote!==state.contextQuote) {
     const previous=state.lastAcceptedPlan;
@@ -130,7 +131,7 @@ async function ensurePlan() {
     state.selectedScene = Math.min(state.selectedScene, plan.scenes.length - 1);
     renderScenes();
     drawStill();
-    status(`${plan.scenes.length} cảnh · ${timeLabel(plan.duration)}. Đang chuẩn bị để xem nhanh.`);
+    status(`${plan.scenes.length} ${sceneLabel(plan).toLowerCase()} · ${timeLabel(plan.duration)}. Đang chuẩn bị để xem nhanh.`);
     $('draftSeek').max=plan.duration;
     populateVideos();
     if(draft) {
@@ -146,10 +147,11 @@ async function ensurePlan() {
   return promise;
 }
 function timeLabel(t) {return Number(t).toFixed(1) + 's';}
+function sceneLabel(plan=state.plan) {return plan?.text_track?'Footage':'Cảnh';}
 function renderScenes() {
   const plan = state.plan;
   if (!plan) return;
-  $('paginationBadge').textContent = `${plan.scenes.length} cảnh${plan.segmentation_mode === 'manual_lines' ? ' theo dòng' : ''} · ${timeLabel(plan.duration)}`;
+  $('paginationBadge').textContent = `${plan.scenes.length} ${sceneLabel(plan).toLowerCase()}${plan.text_track?' · chữ liên tục':plan.segmentation_mode === 'manual_lines' ? ' theo dòng' : ''} · ${timeLabel(plan.duration)}`;
   $('totalDuration').textContent = `Tổng reel: ${timeLabel(plan.duration)} · tối thiểu ${state.settings.duration}s`;
   $('previewStyleName').textContent = THEME_NAMES[state.settings.theme_index];
   const pool=plan.footage_pool;
@@ -161,7 +163,7 @@ function renderScenes() {
   plan.scenes.forEach((scene, index) => {
     const tab = document.createElement('button');
     tab.className = 'slide-tab' + (index === state.selectedScene ? ' active' : '');
-    tab.textContent = `Cảnh ${index + 1} · ${timeLabel(scene.text_start)}–${timeLabel(scene.text_end)}`;
+    tab.textContent = `${sceneLabel(plan)} ${index + 1} · ${timeLabel(scene.text_start)}–${timeLabel(scene.text_end)}`;
     tab.dataset.scene=index;
     tab.onclick = () => seekScene(index);
     $('slideTabs').append(tab);
@@ -173,7 +175,7 @@ function renderScenes() {
     meta.textContent = `${index + 1}. ${scene.video_name} · ${timeLabel(scene.text_start)}–${timeLabel(scene.text_end)} · nguồn ${timeLabel(scene.source_start)}–${timeLabel(scene.source_end)}` + (scene.speed < .999 ? ` · tốc độ ${scene.speed.toFixed(2)}×` : '');
     if(pool?.fallback_scenes?.includes(index)||pool?.repeated_scenes?.includes(index))meta.textContent+=' · ↻ Quay vòng do hết clip mới';
     const text = document.createElement('span');
-    text.textContent = scene.text;
+    text.textContent = plan.text_track?'Chữ chạy liên tục trên toàn Reel':scene.text;
     const image=document.createElement('img');image.src=scene.thumb_url;image.alt=scene.video_name;image.loading='lazy';
     const content=document.createElement('span');content.className='scene-card-content';content.append(meta,text);
     item.append(image,content);
@@ -186,13 +188,14 @@ function renderScenes() {
 function updateSceneLabels() {
   if (!state.plan) return;
   const index = state.selectedScene, scene = state.plan.scenes[index];
-  $('footageTargetLabel').textContent=`Chọn footage cho cảnh ${index+1}`;
+  $('footageTargetLabel').textContent=state.plan.text_track?`Chọn clip cho footage ${index+1}`:`Chọn footage cho cảnh ${index+1}`;
   const suggestion=scene.suggestion;
-  $('currentVideoName').textContent=`Cảnh ${index+1}: ${scene.video_name}`+(suggestion?.requested_path&&!suggestion.accepted?` · Gợi ý được thay thế: ${suggestion.reason}.`:'');
-  $('previewSlideIndicator').textContent = `Cảnh ${index + 1} / ${state.plan.scenes.length}`;
+  $('currentVideoName').textContent=`${sceneLabel()} ${index+1}: ${scene.video_name}`+(suggestion?.requested_path&&!suggestion.accepted?` · Gợi ý được thay thế: ${suggestion.reason}.`:'');
+  $('previewSlideIndicator').textContent = `${sceneLabel()} ${index + 1} / ${state.plan.scenes.length}`;
   $('slidePreviewText').textContent = scene.text;
   $('aiRecommendText').textContent = `Cảnh ${index + 1}: ${scene.video_name} · chữ ${scene.resolved_pos === 'top' ? 'nửa trên' : scene.resolved_pos === 'center' ? 'chính giữa' : 'nửa dưới'}. Kiểm tra lại vị trí nếu chủ thể di chuyển.`;
-  $('posBadge').textContent = state.settings.pos_mode === 'auto' ? 'Tự động theo từng cảnh' : 'Vị trí thủ công';
+  $('posBadge').textContent = state.plan.text_track?'Khung chữ cố định':state.settings.pos_mode === 'auto' ? 'Tự động theo từng cảnh' : 'Vị trí thủ công';
+  $('btnPlayScene').textContent=`▶ Phát ${sceneLabel().toLowerCase()} đang chọn`;
   document.querySelectorAll('.scene-card, .slide-tab').forEach(element => {
     element.classList.toggle('active', Number(element.dataset.scene) === index);
   });
@@ -212,11 +215,12 @@ async function loadImage(url) {
   return new Promise((resolve,reject) => {const im = new Image(); im.onload=()=>resolve(im); im.onerror=()=>reject(new Error('Không tải được ảnh xem trước.')); im.src=url;});
 }
 function loadOverlay(plan,index) {
-  const key=plan.scenes[index].overlay_key||`${plan.plan_id}_${index}`;
+  const key=plan.text_track?`${plan.plan_id}:scroll`:plan.scenes[index].overlay_key||`${plan.plan_id}_${index}`;
   if(!overlayImages.has(key)) {
-    const promise=loadImage(`/api/overlay/${plan.plan_id}/${index}`).catch(error=>{overlayImages.delete(key);throw error;});
+    const loading=plan.text_track?ScrollTextLayer.create(plan,loadImage,()=>{if(draft?.plan===plan&&!draft.running)draft.draw();}):loadImage(`/api/overlay/${plan.plan_id}/${index}`);
+    const promise=loading.catch(error=>{overlayImages.delete(key);throw error;});
     overlayImages.set(key,promise);
-    if(overlayImages.size>120)overlayImages.delete(overlayImages.keys().next().value);
+    if(overlayImages.size>(plan.text_track?8:120))overlayImages.delete(overlayImages.keys().next().value);
   }
   return overlayImages.get(key);
 }
@@ -225,7 +229,7 @@ async function drawStill() {
   if (!plan) return;
   try {
     const scene = plan.scenes[index];
-    const [background, overlay] = await Promise.all([loadImage(scene.thumb_url),loadOverlay(plan,index)]);
+    const [background, overlay] = await Promise.all([loadImage(scene.thumb_url),plan.text_track?loadImage(`/api/overlay/${plan.plan_id}/${index}`):loadOverlay(plan,index)]);
     if (state.plan !== plan || state.selectedScene !== index || player.style.display !== 'none' || draft?.hasFrame&&draft.plan===plan) return;
     ctx.clearRect(0,0,1080,1920);
     const scale = Math.max(1080/background.width,1920/background.height);
@@ -388,7 +392,7 @@ function selectVideo(video) {
   draft?.unlockAudio();
   const legacy=state.currentVideo;
   state.currentVideo=video;
-  const text=$('quoteInput').value.normalize('NFC').split(/\r?\n/).filter(line=>line.trim()).map(line=>line.trim().split(/\s+/).join(' ')).join('\n');
+  const text=$('quoteInput').value.normalize('NFC').split(/\r?\n/).filter(line=>state.settings.theme_index===5||line.trim()).map(line=>line.trim().split(/\s+/).join(' ')).join('\n').trim();
   const previous=state.lastAcceptedPlan;
   const base=state.plan||(previous?.quote===text&&previous.settings?.auto_paginate===state.settings.auto_paginate?previous:null);
   const index=state.selectedScene,scene=base?.scenes[index];
@@ -444,6 +448,18 @@ async function refreshLibrary(mode='refresh') {
 }
 function applySettings() {
   const s=state.settings;
+  const scrolling=s.theme_index===5;
+  $('legacyDesignPanel').style.display=scrolling?'none':'';
+  $('autoPaginateLabel').style.display=scrolling?'none':'';
+  $('scrollControls').style.display=scrolling?'block':'none';
+  $('timingPanelTitle').textContent=scrolling?'04 / Chữ cuộn & Thời lượng':'04 / Phân đoạn chữ & Thời lượng';
+  $('quoteEnterHint').textContent=scrolling?'Nhấn Enter: xuống dòng trong dải chữ cuộn':'Nhấn Enter: mỗi dòng một cảnh';
+  $('quoteLineHelp').textContent=scrolling?'Giữ ngắt dòng và đoạn trong cùng nội dung cuộn; footage chuyển độc lập, không ngắt chữ.':'Xuống dòng để tự chia các phần câu nói. Dòng trống được bỏ qua; chữ trong mỗi cảnh vẫn tự ngắt cho vừa khung.';
+  $('sceneHelp').textContent=scrolling?'Chọn footage để thay clip; chữ vẫn chạy liên tục theo thời gian Reel.':'Bấm cảnh → chọn footage bên dưới → xem ngay cảnh vừa đổi';
+  $('previewHelp').textContent=scrolling?'Chữ chạy liên tục trong khung cố định, mờ ở hai mép. Footage chuyển độc lập. Nháp dùng cùng lớp chữ và timeline với Full HD.':'Câu dài tự chia cảnh và tăng thời lượng đủ đọc. Nháp tức thì dùng cùng kế hoạch và lớp chữ của bản Full HD. Clip mới cần chuẩn bị bản nhẹ một lần; sau đó đổi chữ không phải dựng lại Reel. Chuyển cảnh và màu nháp có thể khác nhẹ bản xuất.';
+  $('scrollSpeedSlider').value=Math.round((s.scroll_speed??1)*100);
+  $('scrollSpeedVal').textContent=(s.scroll_speed??1).toFixed(2)+'×';
+  $('scrollSpeedSlider').oninput=()=>{s.scroll_speed=Number($('scrollSpeedSlider').value)/100;$('scrollSpeedVal').textContent=s.scroll_speed.toFixed(2)+'×';invalidate();};
   const sliders={verticalSlider:['vertical_offset','verticalVal',' px',1],shadeSlider:['shade','shadeVal','%',100],quoteSizeSlider:['quote_size','quoteSizeVal','',1],creditSizeSlider:['credit_size','creditSizeVal','',1],musicVolSlider:['music_volume','musicVolVal','%',100],outlineWidthSlider:['outline_width','outlineWidthVal',' px',1],outlineBlurSlider:['outline_blur','outlineBlurVal',' px',1],outlineOpacitySlider:['outline_opacity','outlineOpacityVal','%',100]};
   Object.entries(sliders).forEach(([id,[key,label,suffix,factor]])=>{
     $(id).value=Math.round(s[key]*factor);$(label).textContent=$(id).value+suffix;

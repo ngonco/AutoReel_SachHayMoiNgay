@@ -6,6 +6,8 @@ launchArgs = ""
 For Each launchArg In WScript.Arguments
     launchArgs = launchArgs & " " & Chr(34) & launchArg & Chr(34)
 Next
+strPathV12 = root & "\AutoReelSachHay_v12.exe"
+strPathDistV12 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v12.exe"
 strPathV11 = root & "\AutoReelSachHay_v11.exe"
 strPathDistV11 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v11.exe"
 strPathV10 = root & "\AutoReelSachHay_v10.exe"
@@ -28,7 +30,11 @@ strPathNew = root & "\AutoReelSachHay_v2.exe"
 strPathRoot = root & "\AutoReelSachHay.exe"
 strPathDistNew = root & "\dist\AutoReelSachHay\AutoReelSachHay_v2.exe"
 strPathDist = root & "\dist\AutoReelSachHay\AutoReelSachHay.exe"
-If FSO.FileExists(strPathV11) Then
+If FSO.FileExists(strPathV12) Then
+    WshShell.Run Chr(34) & strPathV12 & Chr(34) & launchArgs, 0, False
+ElseIf FSO.FileExists(strPathDistV12) Then
+    WshShell.Run Chr(34) & strPathDistV12 & Chr(34) & launchArgs, 0, False
+ElseIf FSO.FileExists(strPathV11) Then
     WshShell.Run Chr(34) & strPathV11 & Chr(34) & launchArgs, 0, False
 ElseIf FSO.FileExists(strPathDistV11) Then
     WshShell.Run Chr(34) & strPathDistV11 & Chr(34) & launchArgs, 0, False

@@ -6,7 +6,7 @@ DEFAULTS = dict(credit='Thanh Vị Sách Hay Mỗi Ngày', credit_size=20, quote
                 outline_blur=8, outline_opacity=.85,
                 quote=None, quote_index=0, video_path='', safe_zone=False, last_save_directory='',
                 background_video_directory='', scene_video_preferences={}, imported_video_paths=[],
-                music_mode='random',music_path='',music_seed='')
+                music_mode='random',music_path='',music_seed='',scroll_speed=1.)
 ALIASES = dict(creditSize='credit_size', quoteSize='quote_size', themeIndex='theme_index',
                posMode='pos_mode', verticalOffset='vertical_offset', autoPaginate='auto_paginate',
                musicVolume='music_volume', outlineEnabled='outline_enabled', outlineColor='outline_color',
@@ -20,9 +20,14 @@ def normalize_settings(values=None):
         if old in raw and new not in raw:
             raw[new] = raw[old]
     result = {**DEFAULTS, **{k: v for k, v in raw.items() if k in DEFAULTS}}
-    for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 4), ('vertical_offset', -1600, 1600), ('outline_width', 0, 16), ('outline_blur', 0, 24)]:
+    for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 5), ('vertical_offset', -1600, 1600), ('outline_width', 0, 16), ('outline_blur', 0, 24)]:
         result[key] = max(low, min(high, int(result[key])))
     result['duration'] = max(1., min(600., float(result['duration'])))
+    import math
+    speed = float(result['scroll_speed'])
+    if not math.isfinite(speed):
+        raise ValueError('Tốc độ chữ không hợp lệ.')
+    result['scroll_speed'] = max(.65, min(1.5, speed))
     for key in ['shade', 'music_volume', 'outline_opacity']:
         value = float(result[key])
         result[key] = max(0., min(1., value / 100 if value > 1 else value))

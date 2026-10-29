@@ -1,6 +1,6 @@
 # System map — Auto Reel Sách Hay Mỗi Ngày
 
-Cập nhật: 2026-10-28. Đọc tài liệu này trước khi nâng cấp hoặc sửa chữa. Repo backup: https://github.com/ngonco/AutoReel_SachHayMoiNgay (nhánh `main`).
+Cập nhật: 2026-10-29. Đọc tài liệu này trước khi nâng cấp hoặc sửa chữa. Repo backup: https://github.com/ngonco/AutoReel_SachHayMoiNgay (nhánh `main`).
 
 ## Quy tắc bắt buộc sau mỗi đợt chỉnh sửa
 
@@ -45,7 +45,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v11, rồi v10/v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v12, rồi v11/v10/v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -295,3 +295,15 @@ Các helper verify_v5/verify_v8/verify_v9 lưu lại quy trình của phiên b�
 - unlockAudio không còn đặt volume=0 rồi để Promise đua với pause. Tạo/resume AudioContext trong click, nối MediaElementSource → Gain → Analyser → destination; HTMLAudio luôn unmuted/volume1 ở chế độ graph, Gain nhận music_volume × fade. Không có AudioContext thì dùng volume HTMLAudio trực tiếp. Nhạc đúng music_url/fingerprint từ plan, không đổi layout/timeline/crop; âm footage vẫn mute. `previewAudioStatus`, `previewAudioLevel` hiển thị trạng thái/âm lượng và mức tín hiệu sau gain. Chỉ khi bị chặn thật mới hiện `btnEnablePreviewAudio`; zero-volume/none không bị tự nâng âm lượng.
 - Bỏ bell khỏi enum settings; giá trị cũ bell được normalize sang random. Kho random rỗng trả music=null cùng lý do chưa có nhạc; không fallback chuông. Bỏ lựa chọn chuông, nút nghe chuông, route /assets/thien_chuong.wav và data asset trong spec. File chuông lịch sử trên đĩa và EXE v10/cũ được giữ nguyên, không được v11 phát hoặc ghép. Nhạc offline người dùng không thay đổi.
 - Regression: Python manual mark/unmark/idempotency/restart/audit/invalid input; music legacy migration/empty no-bell; Node play-abort buffering → tự có tiếng lại, autoplay denial → enable, stale play rejection, manual status cập nhật khi đang sửa câu và lỗi ghi. Test trên profile --workspace riêng; dùng tín hiệu PCM/RMS của nguồn và Full HD, cùng RMS Analyser từ UI thật, không chỉ kiểm tra paused=false.
+
+## V12 — Chữ Cuộn Tinh Tế (2026-10-29)
+
+- Thêm theme_index=5, giữ 0–4. PLAN_VERSION=`multi-scene-v12-continuous-elegant-scroll-1`, health=`multi-scene-v12`. Build/launcher ưu tiên AutoReelSachHay_v12.exe và giữ EXE/phiên cũ. Bundle thêm Segoe UI Semibold (`seguisb.ttf`), không đưa font vào Git.
+- `core.scroll_text` tạo `text_track` riêng trong plan: rect={x:119,y:1325,width:842,height:256} Full HD, lines có text/kind/y/height, content_height, initial_offset, distance, scroll_start/end, duration, fade_seconds, edge_fade, tiles và asset_key. Segmentation_mode=`continuous_scroll`; giữ Enter và đoạn trống ở giữa, không gọi paginator để chia chữ. Credit nối cuối dải, Segoe UI 30px; quote Segoe UI Semibold 48px, line pitch54px, trắng ngà, viền2px/blur3px, không ornament/shade. Các thiết lập thiết kế cũ được giữ nhưng không áp dụng vào preset này.
+- `scroll_speed` tự lưu mặc định1, clamp0.65..1.5, từ chối NaN/Infinity. Duration làm tròn lên30fps: max(thời lượng tối thiểu, số từ quote+credit/(2.5×speed)+4s khi cuộn hoặc0.8s khi đứng yên, 6s khi cuộn hoặc4s khi đứng yên). Giữ đầu2s/cuối2s. Offset là initial_offset+round-half-up(distance×progress); câu vừa khung không chia cho khoảng thời gian cuộn. Mép khung fade18px, toàn reel fade0.2s.
+- Scenes vẫn là đơn vị chọn footage/reservation: count=max(1,floor(duration/7+0.5)), chia đều trên lưới30fps, overlap0.4s như cũ; scene.text giữ toàn nội dung để gợi ý footage khớp quote. Text_track dùng giờ toàn Reel, không reset hoặc fade theo scene. Các quy tắc active library/chống lặp/làm chậm/JobManager/footage history giữ nguyên.
+- Tile PNG842×tối đa512px, raster với bleed24px rồi crop để không đứt viền tại ranh giới. Cache `.cache/scroll_text/{asset_key}/{index}.png`, atomic rename; server LRU32 tiles, nháp tối đa12 tiles/layer, tải vùng nhìn và dự phòng3s. GET `/api/scroll_asset/{plan_id}/{index|mask}` kiểm tra plan/fingerprint và giới hạn index, mask là RGBA có alpha dốc hai mép. Asset key không phụ thuộc footage/nhạc/tốc độ; kế hoạch và cache ảnh tĩnh vẫn phân biệt timeline.
+- `ui/scroll_player.js` chỉ ghép PNG và mask theo plan, không vẽ glyph/wrap/tự tính thời lượng. Buffer/tua dùng đồng hồ chung hiện có. Static `/api/overlay/{plan_id}/{scene_index}` dùng cùng `scroll_frame` tại text_start+0.21s; cache thêm scene index vì chữ khác nhau theo thời điểm footage.
+- MP4 nhẹ và Full HD dùng cùng `scroll_frame`: stream RGBA của riêng viewport vào FFmpeg qtrle MOV lossless tạm, sau đó overlay một lần sau toàn bộ crossfade. Bounded RAM, không tạo ảnh dài khổng lồ hoặc hàng nghìn PNG frame. Overlay chọn format=yuv444 để giữ đúng tọa độ x/y lẻ; chỉ chuyển yuv420p khi encode cuối. Nhạc input index tính theo số input thực, giữ audio/fade v11.
+- UI có preset6, thanh tốc độ, nhãn Footage và hướng dẫn Enter/chữ liên tục; ẩn panel thiết kế cũ và auto_paginate khi chọn6, không sửa các giá trị cũ. Tự lưu qua patch hiện có, chuyển theme xóa gợi ý footage cũ. Dữ liệu cá nhân và media không migrate/reset.
+- Kiểm tra mới: `tests/test_scroll_text.py`, `node tests/test_scroll_player.js`, `verify_v12.py --fullhd --hold` (hoặc --source), toàn bộ trên profile riêng. Helper v11 và cũ chỉ dùng tái hiện phiên bản lịch sử.

@@ -3,6 +3,7 @@
   "credit_size": 20,
   "quote_size": 68,
   "theme_index": 0,
+  "scroll_speed": 1.0,
   "pos_mode": "auto",
   "vertical_offset": 0,
   "shade": 0.7,

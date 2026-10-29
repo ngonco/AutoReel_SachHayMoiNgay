@@ -76,6 +76,7 @@ class DraftPlayer {
   async setPlan(plan,index=0) {
     this.pause();const generation=++this.generation;clearTimeout(this.pollTimer);
     const previous=this.plan,oldMedia=this.media;
+    this.images=new Map();
     this.plan=plan;this.hasFrame=false;this.time=plan.scenes[index].text_start+.21;this.end=plan.duration;
     const musicIdentity=plan.music?`${plan.music.path}:${plan.music.size}:${plan.music.mtime_ns}`:'';
     if(this.musicIdentity!==musicIdentity){
@@ -205,8 +206,14 @@ class DraftPlayer {
       ctx.globalAlpha=i===0?1:Math.max(0,Math.min(1,(time-s.start)/this.plan.transition));
       ctx.drawImage(video,0,0,width,height);
     });
-    ctx.globalAlpha=Math.max(0,Math.min(1,(time-scene.text_start)/.2,(scene.text_end-time)/.2));
-    ctx.drawImage(image,0,0,width,height);ctx.globalAlpha=1;
+    if(this.plan.text_track) {
+      ctx.globalAlpha=1;
+      try {if(!image.draw(ctx,time,width,height))return false;}
+      catch(error){this.onStatus(error.message,true);this.pause();return false;}
+    } else {
+      ctx.globalAlpha=Math.max(0,Math.min(1,(time-scene.text_start)/.2,(scene.text_end-time)/.2));
+      ctx.drawImage(image,0,0,width,height);ctx.globalAlpha=1;
+    }
     if(!this.hasFrame&&this.operationStartedAt&&this.canvas.dataset)
       this.canvas.dataset.firstFrameMs=String(Math.round(performance.now()-this.operationStartedAt));
     this.hasFrame=true;if(this.canvas.dataset)this.canvas.dataset.waitReason='';this.onTime?.(time,scene.index);return true;
