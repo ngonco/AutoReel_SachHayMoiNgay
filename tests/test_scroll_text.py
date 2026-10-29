@@ -76,5 +76,26 @@ class ScrollTests(unittest.TestCase):
         for speed in (float('nan'),float('inf')):
             with self.assertRaises(ValueError):normalize_settings(dict(scroll_speed=speed))
 
+    def test_switch_defaults_on_once_and_preserves_old_draft_and_static_style(self):
+        path=self.root/'session_state.json'
+        path.write_text(json.dumps(dict(theme_index=3,quote='Giữ\n\nnguyên bản nháp',quote_size=86)),encoding='utf-8')
+        before=path.read_bytes()
+        initial=load_settings(self.root)
+        self.assertEqual(initial['theme_index'],5)
+        self.assertTrue(initial['scroll_toggle_initialized'])
+        self.assertEqual(initial['static_theme_index'],3)
+        self.assertEqual(initial['quote_size'],86)
+        self.assertEqual(path.read_bytes(),before,'Reading settings must not rewrite the draft')
+        save_settings_patch(self.root,dict(theme_index=3))
+        restored=load_settings(self.root)
+        self.assertEqual(restored['theme_index'],3,'An explicit off selection survives restart')
+        self.assertEqual(restored['quote'],'Giữ\n\nnguyên bản nháp')
+        self.assertEqual(restored['static_theme_index'],3)
+
+    def test_empty_profile_defaults_to_scroll(self):
+        initial=load_settings(self.root)
+        self.assertEqual(initial['theme_index'],5)
+        self.assertEqual(initial['static_theme_index'],0)
+
 
 if __name__=='__main__':unittest.main()

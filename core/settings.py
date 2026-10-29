@@ -6,7 +6,8 @@ DEFAULTS = dict(credit='Thanh Vị Sách Hay Mỗi Ngày', credit_size=20, quote
                 outline_blur=8, outline_opacity=.85,
                 quote=None, quote_index=0, video_path='', safe_zone=False, last_save_directory='',
                 background_video_directory='', scene_video_preferences={}, imported_video_paths=[],
-                music_mode='random',music_path='',music_seed='',scroll_speed=1.)
+                music_mode='random',music_path='',music_seed='',scroll_speed=1.,
+                scroll_toggle_initialized=False,static_theme_index=0)
 ALIASES = dict(creditSize='credit_size', quoteSize='quote_size', themeIndex='theme_index',
                posMode='pos_mode', verticalOffset='vertical_offset', autoPaginate='auto_paginate',
                musicVolume='music_volume', outlineEnabled='outline_enabled', outlineColor='outline_color',
@@ -20,7 +21,7 @@ def normalize_settings(values=None):
         if old in raw and new not in raw:
             raw[new] = raw[old]
     result = {**DEFAULTS, **{k: v for k, v in raw.items() if k in DEFAULTS}}
-    for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 5), ('vertical_offset', -1600, 1600), ('outline_width', 0, 16), ('outline_blur', 0, 24)]:
+    for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 5), ('static_theme_index', 0, 4), ('vertical_offset', -1600, 1600), ('outline_width', 0, 16), ('outline_blur', 0, 24)]:
         result[key] = max(low, min(high, int(result[key])))
     result['duration'] = max(1., min(600., float(result['duration'])))
     import math
@@ -31,7 +32,7 @@ def normalize_settings(values=None):
     for key in ['shade', 'music_volume', 'outline_opacity']:
         value = float(result[key])
         result[key] = max(0., min(1., value / 100 if value > 1 else value))
-    for key in ['auto_paginate', 'autofit', 'outline_enabled', 'safe_zone']:
+    for key in ['auto_paginate', 'autofit', 'outline_enabled', 'safe_zone', 'scroll_toggle_initialized']:
         result[key] = result[key] if isinstance(result[key], bool) else str(result[key]).lower() in ('true', '1')
     result['credit'] = str(result['credit'] or '').strip()
     import unicodedata
@@ -67,13 +68,23 @@ def normalize_settings(values=None):
     return result
 
 
+def session_settings(values):
+    """Enable the new switch once on upgrade, then retain the user's on/off choice."""
+    result = normalize_settings(values)
+    if not result['scroll_toggle_initialized']:
+        result['static_theme_index'] = result['theme_index'] if result['theme_index'] < 5 else 0
+        result['theme_index'] = 5
+        result['scroll_toggle_initialized'] = True
+    return result
+
+
 def load_settings(workspace):
     from pathlib import Path
     from core.persistence import read_json
     root=Path(workspace)
     path=root/'session_state.json'
     if not path.is_file():path=root/'settings.json'
-    return normalize_settings(read_json(path,dict))
+    return session_settings(read_json(path,dict))
 
 
 def save_settings_patch(workspace, patch):
@@ -92,8 +103,8 @@ def save_settings_patch(workspace, patch):
             raise ValueError('Không đọc được bản tự lưu. File cũ được giữ để khôi phục.')
         clients=existing.get('_save_clients',{})
         if not isinstance(clients,dict):clients={}
-        if client and sequence<=clients.get(client,{}).get('sequence',0):return normalize_settings(existing)
-        result=normalize_settings({**existing,**canonical})
+        if client and sequence<=clients.get(client,{}).get('sequence',0):return session_settings(existing)
+        result=normalize_settings({**session_settings(existing),**canonical})
         if client:
             clients[client]=dict(sequence=sequence,updated=time.time())
             clients=dict(sorted(clients.items(),key=lambda item:item[1].get('updated',0),reverse=True)[:50])

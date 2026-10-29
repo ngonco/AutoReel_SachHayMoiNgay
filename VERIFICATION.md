@@ -1,3 +1,12 @@
+# Bổ sung V12 — CHỮ CUỘN ở đầu giao diện, mặc định bật (2026-10-29)
+
+- Đổi tên hiển thị thành **CHỮ CUỘN**, thay nút mẫu06 bằng công tắc bật/tắt ở panel đầu tiên, phía trên nội dung câu nói. Năm style tĩnh có nút riêng phía dưới; chọn style tĩnh tự tắt công tắc.
+- **80/80 test Python đạt** (55,68s), **6 bộ kiểm tra Node đạt**, diff check đạt. Tests mới kiểm tra bật/tắt, nhớ style tĩnh, giữ cỡ84/offset−100, migration một lần và restart sau khi tắt. Đọc settings không viết lại bản nháp.
+- Build cuối bằng `python -X utf8 build_onefile.py` đạt: **AutoReelSachHay_v12.exe**, **203.770.087 byte**, launcher hiện có mở đúng EXE/PID đã xác minh. Giữ EXE cũ trong v12.previous và các phiên làm việc khác.
+- Kiểm chứng API/khởi động qua VBS trên profile riêng `.cache/v12_smoke_1793283052291310100`: profile cũ theme3, chưa có marker → mặc định theme5, nhớ theme3, giữ quote/cỡ84/offset−100; tắt rồi đóng/mở lại vẫn theme3; bật rồi đóng/mở lại vẫn theme5. Plan hai chế độ đúng, hai field nội bộ công tắc không đi vào settings/hash render. UI trong EXE khớp byte với nguồn cuối.
+- Kiểm tra giao diện thật trên EXE mới: công tắc nằm ngay đầu, mặc định Đang bật; bấm đủ năm style đều đổi đúng badge và Đã tắt, bật lại chuyển CHỮ CUỘN và 3 footage/chữ liên tục. Chờ bản nháp mới sẵn sàng rồi lưu ảnh `test_renders/verification/chu_cuon_toggle.jpg`.
+- Các profile kiểm chứng độc lập với session_state/footage_usage/media thật. Renderer/timing/PLAN_VERSION không đổi trong đợt này; không xuất video sản xuất để thử công tắc.
+
 # Kết quả kiểm tra V12 — 2026-10-29
 
 - Mã cuối: **78/78 kiểm tra Python đạt** (92,2s), năm bộ kiểm tra Node đạt, compileall và git diff --check đạt. Bao gồm giữ Enter/đoạn trống, tiếng Việt, token dài, PNG giới hạn512px, mask mép, đầu/cuối giữ2s, thay tốc độ, lưu/restoration settings, footage reservation/rollback/commit và hồi quy v11.

@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const elements=new Map(),buttons=[0,1,2,3,4].map(theme=>({dataset:{theme:String(theme)},classList:{toggle(){}}}));
+const element=id=>{if(!elements.has(id))elements.set(id,{style:{},classList:{toggle(){}},getContext(){return{};},pause(){}});return elements.get(id);};
+const scope=vm.createContext({document:{getElementById:element,querySelectorAll:selector=>selector==='.template-btn'?buttons:[]},window:{addEventListener(){}},crypto:require('node:crypto').webcrypto,console});
+vm.runInContext(fs.readFileSync('ui/app.js','utf8'),scope);
+const run=code=>vm.runInContext(code,scope);
+run('invalidate=()=>{};state.settings.theme_index=3;state.settings.quote_size=84;state.settings.vertical_offset=-100;setScrollEnabled(true)');
+assert.equal(run('state.settings.theme_index'),5);assert.equal(element('scrollEnabledCheck').checked,true);
+assert.equal(element('themeNameBadge').textContent,'CHỮ CUỘN');assert.equal(element('legacyDesignPanel').style.display,'none');
+run('setScrollEnabled(false)');assert.equal(run('state.settings.theme_index'),3);assert.equal(element('scrollEnabledCheck').checked,false);
+assert.equal(run('state.settings.quote_size'),84);assert.equal(run('state.settings.vertical_offset'),-100);
+run('setScrollEnabled(true)');buttons[4].onclick();
+assert.equal(run('state.settings.theme_index'),4);assert.equal(element('scrollEnabledCheck').checked,false);
+run('setScrollEnabled(true);setScrollEnabled(false)');assert.equal(run('state.settings.theme_index'),4);
+assert.equal(run('state.settings.scroll_toggle_initialized'),true);
+console.log('Scroll switch: enable/disable, previous static style, static choices, default marker and preserved design settings passed.');

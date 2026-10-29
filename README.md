@@ -3,7 +3,7 @@
 Ứng dụng Windows dựng reel dọc với câu nói tiếng Việt, video tượng Phật, sáu template và kho nhạc nền offline.
 
 - Câu dài tự chia thành nhiều cảnh, giữ đủ nội dung và dấu câu.
-- Mẫu **06 Chữ Cuộn Tinh Tế** giữ một dải chữ liên tục trong khung bốn dòng, còn footage chuyển độc lập khoảng 7 giây/clip.
+- Công tắc **CHỮ CUỘN** ở đầu giao diện, mặc định bật, giữ một dải chữ liên tục trong khung bốn dòng; footage chuyển độc lập khoảng 7 giây/clip.
 - Mỗi cảnh dùng một clip khác; clip ngắn được làm chậm vừa đủ.
 - Nháp tức thì phát footage nhẹ và lớp chữ từ renderer, không dựng MP4 toàn Reel sau mỗi lần sửa.
 - Xuất Full HD 1080×1920 từ chính kế hoạch đã xem trước.
@@ -26,7 +26,7 @@ Font dùng Times New Roman Bold và Segoe UI có sẵn trong `C:/Windows/Fonts`.
 
 ## Sử dụng
 
-1. App mở vào câu chưa tải đầu tiên. Chọn câu nói và template. Với mẫu 01–05, Enter chia mỗi dòng thành một cảnh riêng; với mẫu 06, Enter giữ ngắt dòng/đoạn trong cùng dải chữ cuộn.
+1. Chọn style ngay đầu giao diện, phía trên mục nhập câu nói. **CHỮ CUỘN** là công tắc đầu tiên, bật sẵn khi mở bản nâng cấp lần đầu. App nhớ lựa chọn bật/tắt sau đó; tắt trở về style chữ tĩnh trước đó hoặc chọn một trong năm nút style bên dưới. Với mẫu 01–05, Enter chia mỗi dòng thành một cảnh riêng; với CHỮ CUỘN, Enter giữ ngắt dòng/đoạn trong cùng dải chữ cuộn.
 2. Trong **Kịch bản Reel & Video tượng Phật nền**, bấm cảnh rồi chọn footage ngay bên dưới. Tìm theo tên hoặc lọc clip phù hợp; clip gợi ý vẫn tuân thủ chống lặp và ưu tiên ít lượt dùng.
 3. Đổi footage tự phát cảnh vừa đổi. Bấm **Phát toàn Reel** để xem liên tục; có thể dừng, tua và phát lại. Clip mới cần chuẩn bị bản nhẹ một lần, dùng lại sau restart.
 4. Bấm **Tải video**, chọn nơi lưu và tên file. Ứng dụng tự xuất Full HD nếu cần; nếu đã xuất đúng thiết lập trong phiên này thì lưu ngay. Nút **Xuất nhiều Reel** trên thanh đầu xuất toàn bộ danh sách câu; nút Xuất Reel riêng đã bỏ.

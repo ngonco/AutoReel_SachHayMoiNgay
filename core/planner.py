@@ -23,7 +23,7 @@ def build_plan(payload, workspace_dir, detector):
     if 'background_video_directory' not in payload:
         payload = {**payload, 'background_video_directory': load_settings(workspace_dir)['background_video_directory']}
     normalized = normalize_settings(payload)
-    settings = {k:v for k,v in normalized.items() if k not in ('quote','quote_index','video_path','safe_zone','last_save_directory','scene_video_preferences','imported_video_paths')}
+    settings = {k:v for k,v in normalized.items() if k not in ('quote','quote_index','video_path','safe_zone','last_save_directory','scene_video_preferences','imported_video_paths','scroll_toggle_initialized','static_theme_index')}
     raw_text = unicodedata.normalize('NFC', str(payload.get('quote') or ''))
     scrolling = settings['theme_index'] == 5
     text = '\n'.join(' '.join(line.split()) for line in raw_text.splitlines() if scrolling or line.strip()).strip()

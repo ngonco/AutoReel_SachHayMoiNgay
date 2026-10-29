@@ -27,6 +27,26 @@
   <main class="layout">
     <!-- CỘT ĐIỀU KHIỂN BÊN TRÁI -->
     <section class="editor">
+      <div class="panel style-picker" id="stylePickerPanel">
+        <div class="panel-header">
+          <div class="panel-title">Chọn style chữ</div>
+          <div class="panel-sub" id="themeNameBadge">CHỮ CUỘN</div>
+        </div>
+        <label class="scroll-toggle-choice" for="scrollEnabledCheck">
+          <span class="scroll-toggle-copy"><strong>CHỮ CUỘN</strong><small>Chữ nhỏ · cuộn liên tục trong khung cố định</small></span>
+          <span class="scroll-toggle-state" id="scrollEnabledState">Đang bật</span>
+          <input type="checkbox" id="scrollEnabledCheck" role="switch" checked>
+        </label>
+        <div class="templates-grid" id="templatesGrid">
+          <button type="button" class="template-btn" data-theme="0"><span>01 Thiền Vàng</span></button>
+          <button type="button" class="template-btn" data-theme="1"><span>02 Tinh Khôi</span></button>
+          <button type="button" class="template-btn" data-theme="2"><span>03 Kinh Điển</span></button>
+          <button type="button" class="template-btn" data-theme="3"><span>04 Điện Ảnh</span></button>
+          <button type="button" class="template-btn" data-theme="4"><span>05 Sen Giấy</span></button>
+        </div>
+        <p class="panel-sub style-picker-help">CHỮ CUỘN mặc định bật. Tắt công tắc hoặc chọn một style bên dưới để dùng chữ tĩnh.</p>
+      </div>
+
       <!-- 01 / CÂU NÓI & NGUỒN -->
       <div class="panel">
         <div class="panel-header">
@@ -228,41 +248,6 @@
         </div>
       </div>
 
-
-      <!-- 05 / CHỌN PHONG CÁCH CHỮ NGHỆ THUẬT -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">05 / Phong cách chữ nghệ thuật</div>
-          <div class="panel-sub" id="themeNameBadge">Thiền Vàng</div>
-        </div>
-
-        <div class="templates-grid" id="templatesGrid">
-          <div class="template-btn active" data-theme="0">
-            <div class="template-thumb" style="background:#17243c; border-bottom: 3px solid #e5c182;"></div>
-            <span>01 Thiền Vàng</span>
-          </div>
-          <div class="template-btn" data-theme="1">
-            <div class="template-thumb" style="background:#0c1e2d; border-bottom: 3px solid #ffffff;"></div>
-            <span>02 Tinh Khôi</span>
-          </div>
-          <div class="template-btn" data-theme="2">
-            <div class="template-thumb" style="background:#1a1014; border-bottom: 3px solid #e1b27f;"></div>
-            <span>03 Kinh Điển</span>
-          </div>
-          <div class="template-btn" data-theme="3">
-            <div class="template-thumb" style="background:#020814; border-bottom: 3px solid #eac38c;"></div>
-            <span>04 Điện Ảnh</span>
-          </div>
-          <div class="template-btn" data-theme="4">
-            <div class="template-thumb" style="background:#fff8e9; border-bottom: 3px solid #ab8c60;"></div>
-            <span>05 Sen Giấy</span>
-          </div>
-          <div class="template-btn" data-theme="5">
-            <div class="template-thumb" style="background:linear-gradient(#13231d,#39453b);border-bottom:3px solid #fffaef;"></div>
-            <span>06 Chữ Cuộn Tinh Tế</span>
-          </div>
-        </div>
-      </div>
 
       <!-- 06 / XUẤT VIDEO -->
       <div class="panel">

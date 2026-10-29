@@ -3,15 +3,15 @@
 Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v12.exe`.
 
 1. Chọn hoặc nhập toàn bộ câu nói. Với mẫu 01–05, Enter tạo mỗi dòng có chữ thành một cảnh riêng (kể cả khi tắt tự chia cảnh); dòng trống được bỏ qua. Chọn clip cho cảnh đầu.
-2. Với mẫu 01–05, bật **Tự chia cảnh theo dấu câu và từ nối** nếu muốn tự phân đoạn. Các phần sau dùng clip khác trong kho; clip ngắn được làm chậm. Mẫu 06 giữ chữ liên tục và tự chia riêng footage.
-3. Chọn một trong sáu template. Mẫu 01–05 cho chỉnh cỡ chữ, credit và vị trí; mẫu 06 dùng khung chữ nhỏ cố định như hướng dẫn bên dưới.
+2. Với mẫu 01–05, bật **Tự chia cảnh theo dấu câu và từ nối** nếu muốn tự phân đoạn. Các phần sau dùng clip khác trong kho; clip ngắn được làm chậm. CHỮ CUỘN giữ chữ liên tục và tự chia riêng footage.
+3. Dùng công tắc **CHỮ CUỘN** hoặc chọn một trong năm style chữ tĩnh ngay đầu giao diện. Mẫu 01–05 cho chỉnh cỡ chữ, credit và vị trí; CHỮ CUỘN dùng khung chữ nhỏ cố định như hướng dẫn bên dưới.
 4. Xem **Kịch bản reel** để kiểm tra từng phần chữ, clip và thời lượng. Các nút 10/12/15 giây đặt thời lượng tối thiểu; câu dài được tăng thời gian để đọc hết.
 5. Bấm **Phát toàn Reel** để xem nháp trực tiếp với chữ, chuyển cảnh và nhạc offline. Clip mới cần chuẩn bị bản nhẹ một lần. Dùng thanh tua hoặc bấm tên cảnh/footage để nhảy đến đoạn đó.
 6. Bấm **Tải video** trên thanh đầu ứng dụng, cạnh nút thư mục, rồi chọn nơi lưu. Ứng dụng tự xuất Full HD nếu chưa có bản đúng thiết lập trong phiên này; nếu đã xuất thì lưu ngay.
 
-## 06 Chữ Cuộn Tinh Tế
+## CHỮ CUỘN
 
-Chọn mẫu **06 Chữ Cuộn Tinh Tế** trong mục phong cách. Chữ trắng ngà nhỏ, nét vừa, có viền tối mảnh, nằm trong khung cố định khoảng 69–82% chiều cao video. Mẫu này không có bảng nền, hoa văn hoặc đường phân cách.
+Ngay đầu giao diện, phía trên mục nhập câu nói, công tắc **CHỮ CUỘN** nằm trong khung **Chọn style chữ**. Mặc định công tắc bật khi mở bản nâng cấp lần đầu, sau đó nhớ trạng thái bạn đã chọn. Tắt công tắc trở về style chữ tĩnh dùng trước đó; bấm một style tĩnh cũng tự tắt công tắc. Chữ trắng ngà nhỏ, nét vừa, có viền tối mảnh, nằm trong khung cố định khoảng 69–82% chiều cao video. Mẫu này không có bảng nền, hoa văn hoặc đường phân cách.
 
 Nội dung vừa khung đứng yên; nội dung dài giữ phần đầu 2 giây, cuộn lên liên tục và dừng ở phần cuối ít nhất 2 giây. Chữ biến mất dần ở mép trên và hiện dần ở mép dưới. Nhấn Enter giữ ngắt dòng/đoạn, không tạo cảnh chữ mới. Tên trang trong ô Kênh/Nguồn nằm cuối cùng, cuộn cùng nội dung; để trống nếu không muốn hiện.
 

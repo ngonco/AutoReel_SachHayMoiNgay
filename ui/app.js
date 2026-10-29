@@ -2,7 +2,7 @@
 // The server owns segmentation, timing, fonts, scenes and rendering.
 const $ = id => document.getElementById(id);
 const canvas = $('previewCanvas'), ctx = canvas.getContext('2d'), player = $('previewVideo');
-const THEME_NAMES = ['Thiền Vàng', 'Tinh Khôi', 'Kinh Điển', 'Điện Ảnh', 'Sen Giấy', 'Chữ Cuộn Tinh Tế'];
+const THEME_NAMES = ['Thiền Vàng', 'Tinh Khôi', 'Kinh Điển', 'Điện Ảnh', 'Sen Giấy', 'CHỮ CUỘN'];
 const state = {quotes: [], videos: [], currentQuoteIndex: 0, currentVideo: null, plan: null,
   revision: 0, planPromise: null, selectedScene: 0, loadedPlan: null, loadedKind: null,
   lastRenderedUrl: null, lastExport: null, previewUrl: null, busyPreview: false, ready: false,
@@ -446,9 +446,22 @@ async function refreshLibrary(mode='refresh') {
     $('libraryStatus').textContent=error.message;status(error.message,true);
   } finally {state.busyLibrary=false;actionAvailability();}
 }
+function setScrollEnabled(enabled) {
+  const s=state.settings;
+  if(enabled) {
+    if(s.theme_index<5)s.static_theme_index=s.theme_index;
+    s.theme_index=5;
+  } else s.theme_index=s.static_theme_index??0;
+  s.scroll_toggle_initialized=true;
+  applySettings();invalidate();
+}
 function applySettings() {
   const s=state.settings;
   const scrolling=s.theme_index===5;
+  $('scrollEnabledCheck').checked=scrolling;
+  $('scrollEnabledCheck').onchange=()=>setScrollEnabled($('scrollEnabledCheck').checked);
+  $('scrollEnabledState').textContent=scrolling?'Đang bật':'Đã tắt';
+  $('scrollEnabledCheck').parentElement?.classList.toggle('enabled',scrolling);
   $('legacyDesignPanel').style.display=scrolling?'none':'';
   $('autoPaginateLabel').style.display=scrolling?'none':'';
   $('scrollControls').style.display=scrolling?'block':'none';
@@ -486,7 +499,7 @@ function applySettings() {
   setOutlineDisabled();
   [['autofitCheck','autofit'],['autoPaginateCheck','auto_paginate']].forEach(([id,key])=>{$(id).checked=s[key];$(id).onchange=()=>{s[key]=$(id).checked;invalidate();};});
   document.querySelectorAll('.pos-chip').forEach(el=>{el.classList.toggle('active',el.dataset.pos===s.pos_mode);el.onclick=()=>{s.pos_mode=el.dataset.pos;applySettings();invalidate();};});
-  document.querySelectorAll('.template-btn').forEach(el=>{el.classList.toggle('active',Number(el.dataset.theme)===s.theme_index);el.onclick=()=>{s.theme_index=Number(el.dataset.theme);applySettings();invalidate();};});
+  document.querySelectorAll('.template-btn').forEach(el=>{el.classList.toggle('active',Number(el.dataset.theme)===s.theme_index);el.onclick=()=>{s.theme_index=Number(el.dataset.theme);s.static_theme_index=s.theme_index;s.scroll_toggle_initialized=true;applySettings();invalidate();};});
   document.querySelectorAll('.duration-btn').forEach(el=>{el.classList.toggle('active',Number(el.dataset.dur)===s.duration);el.onclick=()=>{s.duration=Number(el.dataset.dur);applySettings();invalidate();};});
   $('themeNameBadge').textContent=THEME_NAMES[s.theme_index];
 }
