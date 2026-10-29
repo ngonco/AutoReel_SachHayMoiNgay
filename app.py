@@ -69,7 +69,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 name = 'index.html' if path == '/' else path[1:]
                 return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'scroll_player.js':'application/javascript; charset=utf-8', 'draft_player.js':'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
             if path == '/api/health':
-                return self._send_json(dict(success=True, version='multi-scene-v12', pid=os.getpid()))
+                return self._send_json(dict(success=True, version='multi-scene-v13', pid=os.getpid()))
             if path == '/api/quotes':
                 return self._send_json(quote_sync.get_quotes())
             if path == '/api/quote_catalog':
@@ -124,7 +124,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                         import uuid
                         tmp=target.with_name(uuid.uuid4().hex+'.png')
                         from PIL import Image
-                        mask=edge_mask(track['rect']['width'],track['rect']['height'],track['edge_fade'])
+                        mask=edge_mask(track['rect']['width'],track['rect']['height'],track['edge_fade_top'],track['edge_fade_bottom'])
                         picture=Image.new('RGBA',mask.size,(255,255,255,255));picture.putalpha(mask);picture.save(tmp)
                         tmp.replace(target)
                 else:

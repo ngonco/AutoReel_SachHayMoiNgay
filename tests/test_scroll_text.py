@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from PIL import Image
-from core.scroll_text import build_track, scroll_frame, scroll_offset, tile_path, RECT
+from core.scroll_text import build_track, scroll_frame, scroll_offset, tile_path, FRAME_BOTTOM, edge_mask
 from core.settings import normalize_settings, save_settings_patch, load_settings
 from core.planner import build_plan
 from core.renderer import scene_overlay
@@ -34,13 +34,13 @@ class ScrollTests(unittest.TestCase):
         self.assertLess(self.track('Nhiều chữ '*60,scroll_speed=1.5)['duration'],self.track('Nhiều chữ '*60,scroll_speed=.65)['duration'])
     def test_enter_blank_paragraph_unicode_and_tile_seams(self):
         track=self.track('Tử tế\n\nBình an\n'+' '.join(['Thiền định hạnh phúc']*140))
-        self.assertEqual(track['lines'][1]['y']-track['lines'][0]['y'],82)
+        self.assertEqual(track['lines'][1]['y']-track['lines'][0]['y'],track['quote_line_height']+(track['quote_line_height']+1)//2)
         for tile in track['tiles']:
             with Image.open(tile_path(track,tile['index'],self.root)) as image:
                 self.assertLessEqual(image.height,512);self.assertEqual(image.width,842)
         for t in (1,track['duration']/2,track['duration']-1):
             image=scroll_frame(track,t,self.root)
-            self.assertEqual(image.size,(RECT['width'],RECT['height']))
+            self.assertEqual(image.size,(track['rect']['width'],track['rect']['height']))
             self.assertEqual(image.getchannel('A').getextrema()[1],255)
             self.assertIsNone(image.crop((0,0,image.width,1)).getbbox())
             self.assertIsNone(image.crop((0,image.height-1,image.width,image.height)).getbbox())
@@ -96,6 +96,60 @@ class ScrollTests(unittest.TestCase):
         initial=load_settings(self.root)
         self.assertEqual(initial['theme_index'],5)
         self.assertEqual(initial['static_theme_index'],0)
+
+    def test_five_full_lines_and_dynamic_frame_keep_bottom(self):
+        text='\n'.join(['Ắn ở tử tế, giữ lòng biết ơn.']*5)
+        base=self.track(text)
+        self.assertEqual(base['visible_lines'],5)
+        self.assertEqual(base['distance'],0)
+        for size in (28,48,80):
+            for rows in (2,5,8):
+                track=self.track(text,scroll_quote_size=size,scroll_lines=rows)
+                self.assertEqual(track['rect']['y']+track['rect']['height'],FRAME_BOTTOM)
+                self.assertGreaterEqual(track['rect']['y'],180)
+                self.assertEqual(track['visible_lines'],rows)
+                self.assertEqual(track['font_sizes']['quote'],size)
+        larger=self.track(text,scroll_quote_size=64)
+        self.assertGreater(larger['rect']['height'],base['rect']['height'])
+        self.assertLess(larger['rect']['y'],base['rect']['y'])
+        two=self.track(text,scroll_lines=2)
+        self.assertGreater(two['distance'],0)
+        self.assertNotEqual(two['asset_key'],base['asset_key'])
+
+    def test_independent_fades_zero_and_outline_cache(self):
+        none=edge_mask(100,200,0,0)
+        self.assertEqual(none.getextrema(),(255,255))
+        separate=edge_mask(100,200,10,40)
+        self.assertEqual(separate.getpixel((20,0)),0)
+        self.assertEqual(separate.getpixel((20,10)),255)
+        self.assertLess(separate.getpixel((20,190)),100)
+        self.assertEqual(separate.getpixel((20,199)),0)
+        plain=self.track('Bình an mỗi ngày.',scroll_outline_enabled=False)
+        outlined=self.track('Bình an mỗi ngày.',scroll_outline_width=10,scroll_outline_blur=24,scroll_outline_color='#ff0000')
+        self.assertNotEqual(plain['asset_key'],outlined['asset_key'])
+        self.assertEqual(outlined['halo'],84)
+        self.assertGreater(outlined['rect']['height'],plain['rect']['height'])
+        self.assertNotEqual(scroll_frame(plain,1,self.root).tobytes(),scroll_frame(outlined,1,self.root).tobytes())
+        saved=save_settings_patch(self.root,dict(scroll_quote_size=64,scroll_lines=8,scroll_fade_top=0,scroll_fade_bottom=64,
+                                               scroll_outline_color='#446688',scroll_outline_width=7,scroll_outline_blur=12,scroll_outline_opacity=.35))
+        self.assertEqual(load_settings(self.root)['scroll_lines'],8)
+        self.assertEqual(load_settings(self.root)['scroll_outline_color'],'#446688')
+        self.assertEqual(saved['quote_size'],68,'Scroll controls must not alter static styles')
+
+    def test_extreme_outline_tiles_match_single_raster_across_seams(self):
+        from PIL import ImageDraw
+        from core.renderer import get_font,paint_outlined_text
+        track=self.track('\n'.join(['ẮẤỄỠỸẬỴ tử tế hạnh phúc']*14),scroll_quote_size=80,
+                         scroll_outline_width=16,scroll_outline_blur=24,scroll_lines=8)
+        assembled=Image.new('RGBA',(842,track['content_height']))
+        for tile in track['tiles']:
+            with Image.open(tile_path(track,tile['index'],self.root)) as image:assembled.paste(image,(0,tile['y']))
+        direct=Image.new('RGBA',assembled.size)
+        font=get_font('seguisb.ttf',80,self.root);pen=ImageDraw.Draw(direct)
+        entries=[((842-pen.textlength(line['text'],font=font))/2,line['baseline'],line['text']) for line in track['lines']]
+        direct=paint_outlined_text(direct,entries,font,(255,250,239,255),track['outline'],anchor='ls')
+        from PIL import ImageChops
+        self.assertIsNone(ImageChops.difference(assembled,direct).getbbox(),'Blur must not form seams between PNG tiles')
 
 
 if __name__=='__main__':unittest.main()

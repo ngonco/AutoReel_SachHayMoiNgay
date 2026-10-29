@@ -10,7 +10,7 @@ from core.settings import normalize_settings, load_settings
 from core.footage_pool import FootagePool
 from core.persistence import atomic_json
 
-PLAN_VERSION = 'multi-scene-v12-continuous-elegant-scroll-1'
+PLAN_VERSION = 'multi-scene-v13-adjustable-scroll-frame-outline-1'
 
 
 def fingerprint(path):

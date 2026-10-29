@@ -3,7 +3,7 @@
 Ứng dụng Windows dựng reel dọc với câu nói tiếng Việt, video tượng Phật, sáu template và kho nhạc nền offline.
 
 - Câu dài tự chia thành nhiều cảnh, giữ đủ nội dung và dấu câu.
-- Công tắc **CHỮ CUỘN** ở đầu giao diện, mặc định bật, giữ một dải chữ liên tục trong khung bốn dòng; footage chuyển độc lập khoảng 7 giây/clip.
+- Công tắc **CHỮ CUỘN** ở đầu giao diện, mặc định bật, khung mặc định 5 dòng, chỉnh được cỡ chữ, 2–8 dòng, viền chữ và hai mép mờ; footage chuyển độc lập khoảng 7 giây/clip.
 - Mỗi cảnh dùng một clip khác; clip ngắn được làm chậm vừa đủ.
 - Nháp tức thì phát footage nhẹ và lớp chữ từ renderer, không dựng MP4 toàn Reel sau mỗi lần sửa.
 - Xuất Full HD 1080×1920 từ chính kế hoạch đã xem trước.
@@ -11,7 +11,7 @@
 
 ## Chạy
 
-Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v12.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe và font bên trong. Nhạc nằm trong kho offline riêng. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
+Bản đã đóng gói: mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v13.exe` trong thư mục có dữ liệu. File EXE đi kèm FFmpeg, FFprobe và font bên trong. Nhạc nằm trong kho offline riêng. Có thể chọn folder clip ở vị trí khác; ứng dụng tự nhớ.
 
 Chạy từ mã nguồn trên Windows, Python 3.11:
 
@@ -43,9 +43,9 @@ python -X utf8 build_onefile.py
 
 `verify_samples.py` cần kho clip thật và xuất ba mẫu (một, hai, ba cảnh) ở cả bản nhẹ và Full HD. Kết quả ở `output_videos/verification`; ảnh kiểm tra và báo cáo ở `test_renders/verification`.
 
-Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng cùng bốn font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE v12 trước đó được giữ ở `AutoReelSachHay_v12.previous.exe`; giữ nguyên EXE/phiên cũ.
+Build đọc `AutoReelSachHay.spec`, gom FFmpeg/FFprobe và DLL cạnh chúng cùng bốn font cần thiết; ghi EXE mới vào thư mục gốc và `dist/AutoReelSachHay`. EXE v13 trước đó được giữ ở `AutoReelSachHay_v13.previous.exe`; giữ nguyên EXE/phiên cũ.
 
-Kiểm tra bản hiện hành qua launcher bằng `python -X utf8 verify_v12.py --fullhd --hold`. Script tạo profile riêng, không sử dụng lịch sử footage hoặc thiết lập thật.
+Kiểm tra bản hiện hành qua launcher bằng `python -X utf8 verify_v13.py --fullhd --hold`. Script tạo profile riêng, không sử dụng lịch sử footage hoặc thiết lập thật.
 
 Bắt buộc sau mỗi đợt sửa code, kể cả giao diện: đóng gói lại EXE từ code cuối cùng, mở qua launcher và kiểm tra chức năng vừa sửa trên bản đóng gói trước khi bàn giao. Không giao EXE cũ sau khi chỉ kiểm tra mã nguồn. Chỉ sửa tài liệu thì không cần build lại.
 

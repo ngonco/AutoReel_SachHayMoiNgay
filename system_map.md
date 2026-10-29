@@ -45,7 +45,7 @@ BAT / VBS / EXE / python app.py
 ```
 
 - `app.py`: `main()`, `--headless`, `--port N`, `--batch`; HTTP API, byte ranges, logging và native file picker.
-- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v12, rồi v11/v10/v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
+- `Chay_Ung_Dung_Auto_Reel.bat`: chuyển về thư mục script rồi ưu tiên EXE v13, rồi v12/v11/v10/v9/v8/v7/v6/v5/v4/v3/v2, EXE cũ gốc, EXE dist, cuối cùng Python. Không phụ thuộc thư mục người dùng đang đứng.
 - `Mo_App_Auto_Reel.vbs`: launcher tương tự, định vị theo chính file VBS.
 - `render_all_reels.py`: batch dùng cùng settings/planner/renderer, mặc định không shutdown.
 - `test_and_review.py`: script mẫu cũ vẫn gọi wrapper renderer; kiểm chứng mới dùng `verify_samples.py`.
@@ -313,3 +313,13 @@ Các helper verify_v5/verify_v8/verify_v9 lưu lại quy trình của phiên b�
 - `stylePickerPanel` là panel đầu tiên của editor, trước nội dung câu nói. Chuyển `templatesGrid` và `themeNameBadge` lên đây, chỉ có một bản. Đổi tên theme5 thành **CHỮ CUỘN**, dùng checkbox role=switch id=scrollEnabledCheck ở đầu, theo sau là năm button style0–4 gọn, hỗ trợ bàn phím, bố cục3 cột/2 cột khi hẹp.
 - Bật công tắc chọn theme5; tắt về static_theme_index (0–4, mặc định0). Chọn style tĩnh ghi nhớ style đó và tắt công tắc; giữ nguyên cỡ chữ/vị trí/outline của các style tĩnh. Trạng thái bật lấy từ theme_index===5, không thêm một boolean bật/tắt trùng lặp.
 - `session_settings()` áp dụng mặc định bật một lần khi nâng cấp/profile mới: scroll_toggle_initialized mặc địnhfalse → ghi nhớ theme cũ trong static_theme_index, trả theme5 và markertrue. Đọc không ghi file. save_settings_patch merge trên session đã chuẩn hóa trước patch, do đó patch tắt công tắc được lưu và không bị bật lại sau restart; bảo toàn quote nguyên văn và các field cũ. API normalize_settings cho payload dựng cũ giữ default theme0; hai field chỉ phục vụ giao diện được loại khỏi settings/hash render plan. Không đổi thuật toán dựng hoặc PLAN_VERSION. Build lại EXE v12 từ mã cuối và kiểm tra qua launcher.
+
+## V13 — Cỡ chữ, số dòng, viền và mép mờ riêng cho CHỮ CUỘN
+
+- PLAN_VERSION=`multi-scene-v13-adjustable-scroll-frame-outline-1`, health=`multi-scene-v13`; build và BAT/VBS ưu tiên AutoReelSachHay_v13.exe, giữ EXE/phiên cũ. `verify_v13.py --fullhd --hold` là kiểm chứng hiện hành; helper v12 và trước chỉ dành cho phiên bản lịch sử.
+- Settings riêng: scroll_quote_size28..80 mặc định48, scroll_lines2..8 mặc định5; scroll_outline_enabled=true, scroll_outline_color=#101018 (hỗ trợ auto), scroll_outline_width0..16 mặc định2, scroll_outline_blur0..24 mặc định3, scroll_outline_opacity0..1 mặc định0.85 (nhận %); scroll_fade_top/bottom0..96 mặc định18. Tự lưu cùng session; không nhập hoặc ghi đè cỡ chữ/outline của style tĩnh.
+- Track giữ đáy y1581, x119/width842. Máy chủ đo bbox tham chiếu dấu tiếng Việt theo baseline ls; line pitch=max(1.125×size, ink_height+0.12×size), làm tròn lên. Height=scroll_lines×quote_pitch+top_pad+bottom_pad, y=1581-height; pad mỗi mép=max(12, độ rộng fade mép đó, halo). Tên trang có cỡ0.625×quote, line pitch/baseline riêng; Enter trống cao nửa quote_pitch. Cấu hình trong khoảng cho phép giữ khung trên y180, không thu nhỏ chữ để ép vừa.
+- Halo=outline_width+ceil(3×blur)+2 khi bật và opacity>0, ngược lại0. Chiều ngang wrap chừa halo, raster tile có bleed=max(8,halo+2) rồi crop, credit giảm width/blur theo tỷ lệ cỡ chữ. Track thêm font_sizes, outline, halo, quote_line_height, visible_lines và baseline của từng dòng; asset key bao gồm bố cục/font/outline/mép mờ, không dùng PNG cũ khi đổi thiết kế.
+- Thay edge_fade đơn bằng edge_fade_top/bottom độc lập. Mask RGBA và scroll_frame dùng cùng edge_mask: clamp min(1,y/top,(height-1-y)/bottom), bỏ thừa số của mép bằng0. Cả hai0 là mask alpha255 toàn khung. Nháp chỉ crop/ghép tile, mask và thời gian từ plan; MP4 nhẹ/Full HD dùng cùng scroll_frame, không dàn chữ trong JS.
+- UI dưới công tắc có cỡ chữ và số dòng với range+number; nhóm details chứa bật/tắt/màu/dày/nhòe/đậm viền và fade trên/dưới. Range cập nhật ngay, number áp dụng khi change/blur và clamp về khoảng; tắt viền chỉ vô hiệu hóa control viền, không khóa hai mép mờ. Chiều cao khung hiển thị từ plan đã nhận.
+- Kiểm tra mới phủ đủ5 dòng có dấu, 28/48/80px ×2/5/8 dòng, neo đáy, hai fade khác nhau/cả hai0, cache theo style, viền cực đại và so sánh toàn bộ pixel giữa tile ghép với raster liên tục để phát hiện đứt viền. Dữ liệu/lượt footage thật không dùng làm fixture.

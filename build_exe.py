@@ -12,13 +12,13 @@ def build():
          '--workpath',str(root/'build'),str(root/'AutoReelSachHay.spec')]
     subprocess.run(cmd,cwd=root,check=True)
     built=staging/'AutoReelSachHay.exe'
-    target=root/'AutoReelSachHay_v12.exe'
+    target=root/'AutoReelSachHay_v13.exe'
     if target.exists():
-        shutil.copy2(target,root/'AutoReelSachHay_v12.previous.exe')
+        shutil.copy2(target,root/'AutoReelSachHay_v13.previous.exe')
     shutil.copy2(built,target)
     alternate=root/'dist'/'AutoReelSachHay'
     alternate.mkdir(parents=True,exist_ok=True)
-    shutil.copy2(built,alternate/'AutoReelSachHay_v12.exe')
+    shutil.copy2(built,alternate/'AutoReelSachHay_v13.exe')
     print('Built:',target)
     return target
 

@@ -154,6 +154,7 @@ function renderScenes() {
   $('paginationBadge').textContent = `${plan.scenes.length} ${sceneLabel(plan).toLowerCase()}${plan.text_track?' · chữ liên tục':plan.segmentation_mode === 'manual_lines' ? ' theo dòng' : ''} · ${timeLabel(plan.duration)}`;
   $('totalDuration').textContent = `Tổng reel: ${timeLabel(plan.duration)} · tối thiểu ${state.settings.duration}s`;
   $('previewStyleName').textContent = THEME_NAMES[state.settings.theme_index];
+  if(plan.text_track)$('scrollFrameInfo').textContent=`Khung ${plan.text_track.visible_lines} dòng · cao ${plan.text_track.rect.height} px · giữ đáy, mở lên trên. Tên trang thu theo cỡ chữ.`;
   const pool=plan.footage_pool;
   if(pool && (pool.fallback_scenes?.length || pool.repeated_scenes?.length))
     $('currentVideoName').textContent+=' Kho không đủ clip mới: đã quay vòng sau khi hết lựa chọn phù hợp.';
@@ -455,9 +456,35 @@ function setScrollEnabled(enabled) {
   s.scroll_toggle_initialized=true;
   applySettings();invalidate();
 }
+function applyScrollControls(s) {
+  const fields=[['scrollQuoteSize','scroll_quote_size',28,80,48,1,' px'],['scrollLines','scroll_lines',2,8,5,1,' dòng'],
+    ['scrollOutlineWidth','scroll_outline_width',0,16,2,1,' px'],['scrollOutlineBlur','scroll_outline_blur',0,24,3,1,' px'],
+    ['scrollOutlineOpacity','scroll_outline_opacity',0,100,.85,100,'%'],
+    ['scrollFadeTop','scroll_fade_top',0,96,18,1,' px'],['scrollFadeBottom','scroll_fade_bottom',0,96,18,1,' px']];
+  fields.forEach(([id,key,min,max,fallback,factor,suffix])=>{
+    s[key]??=fallback;
+    const slider=$(id+'Slider'),number=$(id+'Number'),label=$(id+'Val');
+    const display=()=>{slider.value=number.value=Math.round(s[key]*factor);label.textContent=number.value+suffix;};
+    const change=input=>{
+      const value=String(input.value).trim()===''?NaN:Number(input.value);
+      if(Number.isFinite(value))s[key]=Math.max(min,Math.min(max,Math.round(value)))/factor;
+      display();invalidate();
+    };
+    display();slider.oninput=()=>change(slider);number.onchange=()=>change(number);
+  });
+  s.scroll_outline_enabled??=true;s.scroll_outline_color??='#101018';
+  const disable=()=>{['scrollOutlineColorInput',...['Width','Blur','Opacity'].flatMap(part=>['Slider','Number'].map(suffix=>'scrollOutline'+part+suffix))].forEach(id=>{$(id).disabled=!s.scroll_outline_enabled;});};
+  $('scrollOutlineEnabledCheck').checked=s.scroll_outline_enabled;
+  $('scrollOutlineEnabledCheck').onchange=()=>{s.scroll_outline_enabled=$('scrollOutlineEnabledCheck').checked;disable();invalidate();};
+  $('scrollOutlineColorInput').value=s.scroll_outline_color==='auto'?'#101018':s.scroll_outline_color;
+  $('scrollOutlineColorInput').oninput=()=>{s.scroll_outline_color=$('scrollOutlineColorInput').value;invalidate();};
+  disable();
+}
 function applySettings() {
   const s=state.settings;
   const scrolling=s.theme_index===5;
+  $('scrollDesignPanel').style.display=scrolling?'block':'none';
+  applyScrollControls(s);
   $('scrollEnabledCheck').checked=scrolling;
   $('scrollEnabledCheck').onchange=()=>setScrollEnabled($('scrollEnabledCheck').checked);
   $('scrollEnabledState').textContent=scrolling?'Đang bật':'Đã tắt';

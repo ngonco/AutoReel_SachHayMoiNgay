@@ -737,3 +737,12 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 #scrollEnabledCheck:focus-visible{outline:2px solid var(--accent-gold);outline-offset:4px;}
 .style-picker .style-picker-help{margin-top:12px;line-height:1.6;}
 @media(max-width:650px){.style-picker .templates-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.scroll-design{margin-top:16px;padding-top:16px;border-top:1px solid var(--bg-panel-border);}
+.scroll-number-row{display:flex;align-items:center;gap:10px;}
+.scroll-number-row input[type=range]{flex:1;min-width:0;}
+.scroll-number-row input[type=number]{width:66px;padding:7px 8px;border:1px solid #455165;border-radius:7px;background:#0d1422;color:var(--text-main);font:inherit;font-size:12px;}
+.scroll-number-row input[type=number]:focus{outline:2px solid var(--accent-gold);outline-offset:1px;}
+.scroll-design .panel-sub{line-height:1.6;margin:10px 0;}
+.scroll-advanced{margin-top:10px;border:1px solid var(--bg-panel-border);border-radius:10px;padding:12px;}
+.scroll-advanced summary{cursor:pointer;color:var(--accent-gold);font-size:12px;font-weight:600;}
+.scroll-advanced[open] summary{margin-bottom:16px;}

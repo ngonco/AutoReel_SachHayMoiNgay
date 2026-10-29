@@ -2,7 +2,11 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 title Auto Reel Sách Hay Mỗi Ngày
-if exist "AutoReelSachHay_v12.exe" (
+if exist "AutoReelSachHay_v13.exe" (
+    start "" "AutoReelSachHay_v13.exe" %*
+) else if exist "dist\AutoReelSachHay\AutoReelSachHay_v13.exe" (
+    start "" "dist\AutoReelSachHay\AutoReelSachHay_v13.exe" %*
+) else if exist "AutoReelSachHay_v12.exe" (
     start "" "AutoReelSachHay_v12.exe" %*
 ) else if exist "dist\AutoReelSachHay\AutoReelSachHay_v12.exe" (
     start "" "dist\AutoReelSachHay\AutoReelSachHay_v12.exe" %*

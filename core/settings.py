@@ -7,7 +7,10 @@ DEFAULTS = dict(credit='Thanh Vị Sách Hay Mỗi Ngày', credit_size=20, quote
                 quote=None, quote_index=0, video_path='', safe_zone=False, last_save_directory='',
                 background_video_directory='', scene_video_preferences={}, imported_video_paths=[],
                 music_mode='random',music_path='',music_seed='',scroll_speed=1.,
-                scroll_toggle_initialized=False,static_theme_index=0)
+                scroll_toggle_initialized=False,static_theme_index=0,
+                scroll_quote_size=48,scroll_lines=5,scroll_outline_enabled=True,
+                scroll_outline_color='#101018',scroll_outline_width=2,scroll_outline_blur=3,
+                scroll_outline_opacity=.85,scroll_fade_top=18,scroll_fade_bottom=18)
 ALIASES = dict(creditSize='credit_size', quoteSize='quote_size', themeIndex='theme_index',
                posMode='pos_mode', verticalOffset='vertical_offset', autoPaginate='auto_paginate',
                musicVolume='music_volume', outlineEnabled='outline_enabled', outlineColor='outline_color',
@@ -23,16 +26,21 @@ def normalize_settings(values=None):
     result = {**DEFAULTS, **{k: v for k, v in raw.items() if k in DEFAULTS}}
     for key, low, high in [('credit_size', 14, 48), ('quote_size', 40, 108), ('theme_index', 0, 5), ('static_theme_index', 0, 4), ('vertical_offset', -1600, 1600), ('outline_width', 0, 16), ('outline_blur', 0, 24)]:
         result[key] = max(low, min(high, int(result[key])))
+    for key, low, high in [('scroll_quote_size',28,80),('scroll_lines',2,8),
+                           ('scroll_outline_width',0,16),('scroll_outline_blur',0,24),
+                           ('scroll_fade_top',0,96),('scroll_fade_bottom',0,96)]:
+        result[key] = max(low,min(high,int(result[key])))
     result['duration'] = max(1., min(600., float(result['duration'])))
     import math
     speed = float(result['scroll_speed'])
     if not math.isfinite(speed):
         raise ValueError('Tốc độ chữ không hợp lệ.')
     result['scroll_speed'] = max(.65, min(1.5, speed))
-    for key in ['shade', 'music_volume', 'outline_opacity']:
+    for key in ['shade', 'music_volume', 'outline_opacity', 'scroll_outline_opacity']:
         value = float(result[key])
+        if not math.isfinite(value):raise ValueError('Thông số độ đậm không hợp lệ.')
         result[key] = max(0., min(1., value / 100 if value > 1 else value))
-    for key in ['auto_paginate', 'autofit', 'outline_enabled', 'safe_zone', 'scroll_toggle_initialized']:
+    for key in ['auto_paginate', 'autofit', 'outline_enabled', 'safe_zone', 'scroll_toggle_initialized', 'scroll_outline_enabled']:
         result[key] = result[key] if isinstance(result[key], bool) else str(result[key]).lower() in ('true', '1')
     result['credit'] = str(result['credit'] or '').strip()
     import unicodedata
@@ -63,6 +71,8 @@ def normalize_settings(values=None):
     import re
     color = str(result['outline_color']).lower()
     result['outline_color'] = color if color == 'auto' or re.fullmatch(r'#[0-9a-f]{6}', color) else DEFAULTS['outline_color']
+    color = str(result['scroll_outline_color']).lower()
+    result['scroll_outline_color'] = color if color == 'auto' or re.fullmatch(r'#[0-9a-f]{6}',color) else DEFAULTS['scroll_outline_color']
     if result['pos_mode'] not in ('auto', 'bottom', 'top', 'center'):
         result['pos_mode'] = 'auto'
     return result

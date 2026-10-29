@@ -45,6 +45,27 @@
           <button type="button" class="template-btn" data-theme="4"><span>05 Sen Giấy</span></button>
         </div>
         <p class="panel-sub style-picker-help">CHỮ CUỘN mặc định bật. Tắt công tắc hoặc chọn một style bên dưới để dùng chữ tĩnh.</p>
+        <div id="scrollDesignPanel" class="scroll-design">
+          <div class="slider-grid">
+            <div class="slider-field"><label for="scrollQuoteSizeSlider">Cỡ chữ: <b id="scrollQuoteSizeVal">48 px</b></label><div class="scroll-number-row"><input type="range" id="scrollQuoteSizeSlider" min="28" max="80" value="48" step="1"><input type="number" id="scrollQuoteSizeNumber" min="28" max="80" value="48" step="1" aria-label="Nhập cỡ chữ cuộn"></div></div>
+            <div class="slider-field"><label for="scrollLinesSlider">Số dòng khung: <b id="scrollLinesVal">5 dòng</b></label><div class="scroll-number-row"><input type="range" id="scrollLinesSlider" min="2" max="8" value="5" step="1"><input type="number" id="scrollLinesNumber" min="2" max="8" value="5" step="1" aria-label="Nhập số dòng khung chữ"></div></div>
+          </div>
+          <p class="panel-sub" id="scrollFrameInfo">Khung tự cao theo cỡ chữ và số dòng, giữ đáy và mở lên trên.</p>
+          <details class="scroll-advanced"><summary>Viền chữ và độ mờ hai mép khung</summary>
+            <div class="outline-heading">
+              <label class="switch-label"><input type="checkbox" id="scrollOutlineEnabledCheck" checked> Bật viền quanh chữ</label>
+              <label class="outline-color-label" for="scrollOutlineColorInput">Màu viền <input type="color" id="scrollOutlineColorInput" value="#101018"></label>
+            </div>
+            <div class="slider-grid">
+              <div class="slider-field"><label for="scrollOutlineWidthSlider">Độ dày viền: <b id="scrollOutlineWidthVal">2 px</b></label><div class="scroll-number-row"><input type="range" id="scrollOutlineWidthSlider" min="0" max="16" value="2" step="1"><input type="number" id="scrollOutlineWidthNumber" min="0" max="16" value="2" step="1" aria-label="Nhập độ dày viền chữ cuộn"></div></div>
+              <div class="slider-field"><label for="scrollOutlineBlurSlider">Độ nhòe viền: <b id="scrollOutlineBlurVal">3 px</b></label><div class="scroll-number-row"><input type="range" id="scrollOutlineBlurSlider" min="0" max="24" value="3" step="1"><input type="number" id="scrollOutlineBlurNumber" min="0" max="24" value="3" step="1" aria-label="Nhập độ nhòe viền chữ cuộn"></div></div>
+              <div class="slider-field"><label for="scrollOutlineOpacitySlider">Độ đậm viền: <b id="scrollOutlineOpacityVal">85%</b></label><div class="scroll-number-row"><input type="range" id="scrollOutlineOpacitySlider" min="0" max="100" value="85" step="1"><input type="number" id="scrollOutlineOpacityNumber" min="0" max="100" value="85" step="1" aria-label="Nhập độ đậm viền chữ cuộn"></div></div>
+              <div class="slider-field"><label for="scrollFadeTopSlider">Vùng mờ mép trên: <b id="scrollFadeTopVal">18 px</b></label><div class="scroll-number-row"><input type="range" id="scrollFadeTopSlider" min="0" max="96" value="18" step="1"><input type="number" id="scrollFadeTopNumber" min="0" max="96" value="18" step="1" aria-label="Nhập vùng mờ mép trên"></div></div>
+              <div class="slider-field"><label for="scrollFadeBottomSlider">Vùng mờ mép dưới: <b id="scrollFadeBottomVal">18 px</b></label><div class="scroll-number-row"><input type="range" id="scrollFadeBottomSlider" min="0" max="96" value="18" step="1"><input type="number" id="scrollFadeBottomNumber" min="0" max="96" value="18" step="1" aria-label="Nhập vùng mờ mép dưới"></div></div>
+            </div>
+            <p class="panel-sub">Vùng mờ bằng 0 sẽ tắt hiệu ứng ở mép đó. Viền và nét chữ luôn nằm trong khung. Các thông số chỉ áp dụng cho CHỮ CUỘN.</p>
+          </details>
+        </div>
       </div>
 
       <!-- 01 / CÂU NÓI & NGUỒN -->
@@ -236,7 +257,7 @@
         <div id="scrollControls" style="display:none;margin-top:16px;">
           <label for="scrollSpeedSlider">Tốc độ chữ · Chậm–Nhanh: <b id="scrollSpeedVal">1.00×</b></label>
           <input type="range" id="scrollSpeedSlider" min="65" max="150" value="100" step="5" style="width:100%;">
-          <p class="panel-sub">Khung cố định 4 dòng ở phần dưới video. Chữ dài cuộn liên tục và mờ dần ở hai mép; Enter giữ ngắt dòng. Tên trang nằm cuối nội dung. Footage đổi khoảng 7 giây, chữ vẫn chạy tiếp.</p>
+          <p class="panel-sub">Chỉnh cỡ chữ, số dòng và viền ở mục CHỮ CUỘN đầu giao diện. Khung mặc định 5 dòng, giữ đáy và mở lên trên. Enter giữ ngắt dòng; footage chuyển độc lập.</p>
         </div>
         <p id="totalDuration" class="timeline-summary">Đang tính thời lượng…</p>
         <!-- Danh sách lấy từ kế hoạch chung của máy chủ -->

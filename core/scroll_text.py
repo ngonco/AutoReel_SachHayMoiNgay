@@ -12,42 +12,67 @@ from functools import lru_cache
 from PIL import Image, ImageChops, ImageDraw
 
 RECT = dict(x=119, y=1325, width=842, height=256)
+FRAME_BOTTOM = RECT['y'] + RECT['height']
 PAD, TILE_HEIGHT = 18, 512
-STYLE_VERSION = 'elegant-scroll-1'
+STYLE_VERSION = 'elegant-scroll-adjustable-2'
 
 
 def build_track(text, credit, settings, workspace):
     from core.renderer import get_font, wrap_text
     draw = ImageDraw.Draw(Image.new('L', (1, 1)))
-    fonts = {'quote': get_font('seguisb.ttf', 48, workspace),
-             'credit': get_font('segoeui.ttf', 30, workspace)}
-    lines, y = [], PAD
+    sizes = dict(quote=settings['scroll_quote_size'],credit=round(settings['scroll_quote_size']*.625))
+    fonts = {'quote': get_font('seguisb.ttf', sizes['quote'], workspace),
+             'credit': get_font('segoeui.ttf', sizes['credit'], workspace)}
+    outline = {key:settings['scroll_'+key] for key in
+               ('outline_enabled','outline_color','outline_width','outline_blur','outline_opacity')}
+    halo = outline['outline_width'] + math.ceil(outline['outline_blur']*3) + 2 if outline['outline_enabled'] and outline['outline_opacity']>0 else 0
+    metrics = {}
+    for kind,font in fonts.items():
+        # Shared baseline bounds cover stacked Vietnamese accents and descending glyphs.
+        box = font.getbbox('ẮẤỄỠỸẬỴgjpq',anchor='ls')
+        ink_height = box[3]-box[1]
+        pitch = math.ceil(max(sizes[kind]*1.125,ink_height+sizes[kind]*.12))
+        metrics[kind] = dict(height=pitch,baseline=-box[1]+(pitch-ink_height)//2)
+    top_pad = max(12,settings['scroll_fade_top'],halo)
+    bottom_pad = max(12,settings['scroll_fade_bottom'],halo)
+    rect = RECT.copy()
+    rect['height'] = settings['scroll_lines']*metrics['quote']['height']+top_pad+bottom_pad
+    rect['y'] = FRAME_BOTTOM-rect['height']
+    if rect['y'] < 180:
+        raise ValueError('Khung chữ quá cao. Hãy giảm cỡ chữ hoặc số dòng.')
+    max_width = rect['width']-2*max(16,halo+4)
+    lines, y = [], top_pad
+    def append_line(text,kind):
+        nonlocal y
+        metric = metrics[kind]
+        lines.append(dict(text=text,kind=kind,y=y,height=metric['height'],baseline=y+metric['baseline']))
+        y += metric['height']
     # Preserve explicit Enter boundaries and empty paragraphs without turning them into scenes.
     for paragraph in text.split('\n'):
         if not paragraph.strip():
-            y += 28
+            y += math.ceil(metrics['quote']['height']/2)
             continue
-        for line in wrap_text(paragraph, fonts['quote'], RECT['width'] - 32, draw):
-            lines.append(dict(text=line, kind='quote', y=y, height=54))
-            y += 54
+        for line in wrap_text(paragraph, fonts['quote'], max_width, draw):
+            append_line(line,'quote')
     if credit:
-        y += 10
+        y += max(6,round(sizes['quote']*.2))
         for paragraph in credit.splitlines():
-            for line in wrap_text(paragraph, fonts['credit'], RECT['width'] - 32, draw):
-                lines.append(dict(text=line, kind='credit', y=y, height=40))
-                y += 40
-    content_height = y + PAD
-    distance = max(0, content_height - RECT['height'])
+            for line in wrap_text(paragraph, fonts['credit'], max_width, draw):
+                append_line(line,'credit')
+    content_height = y + bottom_pad
+    distance = max(0, content_height - rect['height'])
     words = len((text + ' ' + credit).split())
     seconds = max(float(settings['duration']), words / (2.5 * settings['scroll_speed']) + (4 if distance else .8), 6 if distance else 4)
     duration = math.ceil(seconds * 30) / 30
-    track = dict(style_version=STYLE_VERSION, rect=RECT.copy(), lines=lines,
+    track = dict(style_version=STYLE_VERSION, rect=rect, lines=lines,font_sizes=sizes,
+                 outline=outline,halo=halo,quote_line_height=metrics['quote']['height'],visible_lines=settings['scroll_lines'],
                  content_height=content_height, distance=distance,
                  scroll_start=2., scroll_end=duration - 2., duration=duration,
-                 fade_seconds=.2, edge_fade=PAD, tile_height=TILE_HEIGHT)
+                 fade_seconds=.2,edge_fade_top=settings['scroll_fade_top'],edge_fade_bottom=settings['scroll_fade_bottom'],tile_height=TILE_HEIGHT)
     # Static short content sits on the same lower edge as the full four-line window.
-    track['initial_offset'] = min(0, content_height - RECT['height'])
-    asset_data = {k: track[k] for k in ('style_version', 'rect', 'lines', 'content_height', 'tile_height', 'edge_fade')}
+    track['initial_offset'] = min(0, content_height - rect['height'])
+    asset_data = {k:track[k] for k in ('style_version','rect','lines','content_height','tile_height',
+                                     'font_sizes','outline','halo','edge_fade_top','edge_fade_bottom')}
     track['asset_key'] = hashlib.sha256(json.dumps(asset_data, ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:32]
     track['tiles'] = [dict(index=i, y=y, height=min(TILE_HEIGHT, content_height-y))
                       for i,y in enumerate(range(0, content_height, TILE_HEIGHT))]
@@ -74,20 +99,21 @@ def tile_path(track, index, workspace):
     if target.is_file():
         return target
     from core.renderer import get_font, paint_outlined_text
-    bleed = 24
+    bleed = max(8,track['halo']+2)
     image = Image.new('RGBA', (track['rect']['width'], tile['height']+2*bleed))
-    style = dict(outline_enabled=True, outline_color='#101018', outline_width=2,
-                 outline_blur=3, outline_opacity=.85)
-    for kind, name, size in [('quote','seguisb.ttf',48), ('credit','segoeui.ttf',30)]:
-        font = get_font(name, size, workspace)
+    for kind, name in [('quote','seguisb.ttf'), ('credit','segoeui.ttf')]:
+        font = get_font(name,track['font_sizes'][kind],workspace)
+        ratio = track['font_sizes'][kind]/track['font_sizes']['quote']
+        style = {**track['outline'],'outline_width':round(track['outline']['outline_width']*ratio),
+                 'outline_blur':track['outline']['outline_blur']*ratio}
         entries = []
         pen = ImageDraw.Draw(image)
         for line in track['lines']:
-            if line['kind'] != kind or line['y']+line['height']+12 < tile['y']-bleed or line['y']-12 >= tile['y']+tile['height']+bleed:
+            if line['kind'] != kind or line['y']+line['height']+bleed < tile['y'] or line['y']-bleed >= tile['y']+tile['height']:
                 continue
             # Shared baseline, including Vietnamese marks; never align individual ink tops.
             x = (image.width-pen.textlength(line['text'], font=font))/2
-            entries.append((x, line['y'] + (42 if kind=='quote' else 29) - tile['y']+bleed, line['text']))
+            entries.append((x,line['baseline']-tile['y']+bleed,line['text']))
         image = paint_outlined_text(image, entries, font, (255,250,239,255), style, anchor='ls')
     image = image.crop((0,bleed,image.width,bleed+tile['height']))
     import uuid
@@ -107,11 +133,12 @@ def _read_tile(path):
 
 
 @lru_cache(maxsize=8)
-def edge_mask(width=842, height=256, band=PAD):
+def edge_mask(width=842,height=256,top=PAD,bottom=None):
+    bottom = top if bottom is None else bottom
     mask = Image.new('L', (width, height))
     draw = ImageDraw.Draw(mask)
     for y in range(height):
-        alpha = round(255*min(1., y/band, (height-1-y)/band))
+        alpha = round(255*min(1.,y/top if top else 1.,(height-1-y)/bottom if bottom else 1.))
         draw.line((0,y,width-1,y), fill=alpha)
     return mask
 
@@ -126,7 +153,7 @@ def scroll_frame(track, seconds, workspace):
             continue
         picture = _read_tile(str(tile_path(track,tile['index'],workspace)))
         image.alpha_composite(picture, (0,y))
-    alpha = ImageChops.multiply(image.getchannel('A'), edge_mask(rect['width'],rect['height'],track['edge_fade']))
+    alpha = ImageChops.multiply(image.getchannel('A'),edge_mask(rect['width'],rect['height'],track['edge_fade_top'],track['edge_fade_bottom']))
     fade = frame_alpha(track,seconds)
     if fade < 1:
         alpha = alpha.point([round(i*fade) for i in range(256)])

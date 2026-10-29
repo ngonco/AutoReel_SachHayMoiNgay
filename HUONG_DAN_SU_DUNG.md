@@ -1,21 +1,25 @@
 # Hướng dẫn Auto Reel Sách Hay Mỗi Ngày
 
-Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v12.exe`.
+Mở `Chay_Ung_Dung_Auto_Reel.bat` hoặc `AutoReelSachHay_v13.exe`.
 
 1. Chọn hoặc nhập toàn bộ câu nói. Với mẫu 01–05, Enter tạo mỗi dòng có chữ thành một cảnh riêng (kể cả khi tắt tự chia cảnh); dòng trống được bỏ qua. Chọn clip cho cảnh đầu.
 2. Với mẫu 01–05, bật **Tự chia cảnh theo dấu câu và từ nối** nếu muốn tự phân đoạn. Các phần sau dùng clip khác trong kho; clip ngắn được làm chậm. CHỮ CUỘN giữ chữ liên tục và tự chia riêng footage.
-3. Dùng công tắc **CHỮ CUỘN** hoặc chọn một trong năm style chữ tĩnh ngay đầu giao diện. Mẫu 01–05 cho chỉnh cỡ chữ, credit và vị trí; CHỮ CUỘN dùng khung chữ nhỏ cố định như hướng dẫn bên dưới.
+3. Dùng công tắc **CHỮ CUỘN** hoặc chọn một trong năm style chữ tĩnh ngay đầu giao diện. Chỉnh cỡ chữ/số dòng của CHỮ CUỘN ngay dưới công tắc; chỉnh thêm viền và hai mép mờ trong mục mở rộng.
 4. Xem **Kịch bản reel** để kiểm tra từng phần chữ, clip và thời lượng. Các nút 10/12/15 giây đặt thời lượng tối thiểu; câu dài được tăng thời gian để đọc hết.
 5. Bấm **Phát toàn Reel** để xem nháp trực tiếp với chữ, chuyển cảnh và nhạc offline. Clip mới cần chuẩn bị bản nhẹ một lần. Dùng thanh tua hoặc bấm tên cảnh/footage để nhảy đến đoạn đó.
 6. Bấm **Tải video** trên thanh đầu ứng dụng, cạnh nút thư mục, rồi chọn nơi lưu. Ứng dụng tự xuất Full HD nếu chưa có bản đúng thiết lập trong phiên này; nếu đã xuất thì lưu ngay.
 
 ## CHỮ CUỘN
 
-Ngay đầu giao diện, phía trên mục nhập câu nói, công tắc **CHỮ CUỘN** nằm trong khung **Chọn style chữ**. Mặc định công tắc bật khi mở bản nâng cấp lần đầu, sau đó nhớ trạng thái bạn đã chọn. Tắt công tắc trở về style chữ tĩnh dùng trước đó; bấm một style tĩnh cũng tự tắt công tắc. Chữ trắng ngà nhỏ, nét vừa, có viền tối mảnh, nằm trong khung cố định khoảng 69–82% chiều cao video. Mẫu này không có bảng nền, hoa văn hoặc đường phân cách.
+Ngay đầu giao diện, phía trên mục nhập câu nói, công tắc **CHỮ CUỘN** nằm trong khung **Chọn style chữ**. Mặc định công tắc bật khi mở bản nâng cấp lần đầu, sau đó nhớ trạng thái bạn đã chọn. Tắt công tắc trở về style chữ tĩnh dùng trước đó; bấm một style tĩnh cũng tự tắt công tắc. Chữ trắng ngà, nét vừa; khung giữ đáy ở vị trí cũ và tự mở lên trên theo cỡ chữ/số dòng. Không có bảng nền, hoa văn hoặc đường phân cách.
+
+**Cỡ chữ** chỉnh 28–80 px (mặc định48); **Số dòng khung** chỉnh2–8 (mặc định5). Có cả thanh kéo và ô nhập số; nhập số rồi bấm Tab hoặc ra ngoài ô để áp dụng. App tính chiều cao đủ số dòng, bao gồm dấu tiếng Việt. Dòng tên trang tự thu theo cỡ chữ chính. Nháp cập nhật theo thiết lập mới.
+
+Mở **Viền chữ và độ mờ hai mép khung** để bật/tắt viền, chọn màu, chỉnh độ dày0–16 px, độ nhòe0–24 px và độ đậm0–100%. Chỉnh riêng **Vùng mờ mép trên** và **Vùng mờ mép dưới** từ0–96 px; giá trị0 tắt hiệu ứng ở mép đó. Các thông số tự lưu riêng cho CHỮ CUỘN, không đổi các style chữ tĩnh; nháp và Full HD dùng cùng thông số.
 
 Nội dung vừa khung đứng yên; nội dung dài giữ phần đầu 2 giây, cuộn lên liên tục và dừng ở phần cuối ít nhất 2 giây. Chữ biến mất dần ở mép trên và hiện dần ở mép dưới. Nhấn Enter giữ ngắt dòng/đoạn, không tạo cảnh chữ mới. Tên trang trong ô Kênh/Nguồn nằm cuối cùng, cuộn cùng nội dung; để trống nếu không muốn hiện.
 
-Thanh **Tốc độ chữ · Chậm–Nhanh** chỉnh từ 0,65× đến 1,50×. App tự tính thời lượng đủ đọc, các nút 10/12/15 giây vẫn là thời lượng tối thiểu. Footage chuyển khoảng 7 giây/clip; vẫn chọn và thay từng footage, chữ không bắt đầu lại khi chuyển clip. Vị trí, cỡ chữ và hiệu ứng của mẫu được cố định; chọn lại mẫu 01–05 để dùng các điều khiển thiết kế cũ, giá trị cũ được giữ nguyên.
+Thanh **Tốc độ chữ · Chậm–Nhanh** chỉnh từ 0,65× đến 1,50×. App tự tính thời lượng đủ đọc, các nút 10/12/15 giây vẫn là thời lượng tối thiểu. Footage chuyển khoảng 7 giây/clip; vẫn chọn và thay từng footage, chữ không bắt đầu lại khi chuyển clip. Chọn lại mẫu01–05 để dùng các điều khiển thiết kế cũ, giá trị cũ được giữ nguyên.
 
 Tên file gợi ý là 5 từ đầu câu nói, có dấu tiếng Việt và đuôi `.mp4`; có thể sửa tên. Hộp thoại nhớ thư mục sau khi xác nhận, kể cả khi mở lại ứng dụng. Hủy thì không dựng video. Tải lại bản vừa xuất không tính thêm lượt footage. Nếu lưu lỗi, bản Full HD vẫn còn trong ứng dụng để thử tải sang nơi khác. Thay đổi nội dung trong lúc dựng không đổi file đã yêu cầu tải.
 

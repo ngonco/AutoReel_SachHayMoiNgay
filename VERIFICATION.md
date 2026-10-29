@@ -1,3 +1,13 @@
+# V13 — Điều chỉnh cỡ chữ, số dòng, viền và hai mép mờ (2026-10-29)
+
+- **83/83 test Python đạt** (89,42s), **6 bộ kiểm tra Node đạt**. Bao gồm5 dòng đầy đủ có dấu tiếng Việt; 28/48/80px ×2/5/8 dòng; khung giữ đáy y1581 và nở lên; mask trên/dưới độc lập/cả hai0; lưu riêng thông số chữ cuộn; so khớp pixel giữa tile ghép và raster liên tục với cỡ80/viền16/blur24 để phát hiện đứt viền.
+- Build cuối `python -X utf8 build_onefile.py` đạt: **AutoReelSachHay_v13.exe**, **203.773.164 byte**. BAT/VBS ưu tiên v13, giữ v12 và phiên cũ; health/version/PID/đường dẫn EXE thực được kiểm tra qua launcher.
+- `python -X utf8 verify_v13.py --fullhd --hold` đạt trên profile riêng `.cache/v13_smoke_1793286075386679100`; kết quả trong `verification.json`. Mặc định48px/5 dòng; cấu hình tùy chỉnh64px/5 dòng, viền5px/blur10/màu#1f2f55/opacity70%, mép trên0/mép dưới72px → rect{x119,y1022,width842,height559}, cùng đáy1581. Cực trị28/80px ×2/8 dòng với viền/fade cực đại vẫn trong vùng an toàn.
+- Nháp360×640 đạt (39,08s dựng); Full HD1080×1920,20,8s/3 footage đạt (34,97s dựng), decode toàn file đạt. Pixel nét chữ so với scroll_frame tại đầu/chuyển footage/giữa/cuối: **99,9978–100%** qua ngưỡng nén; không có chữ ngoài rect. Nhạc PCM RMS **0,0713**. Preview không đổi lịch sử footage, chỉ xuất thành công qua JobManager mới tính lượt trong profile thử.
+- Mở lại EXE qua VBS giữ toàn bộ cỡ/số dòng/màu/dày/nhòe/đậm viền và fade trên/dưới. Cỡ chữ tĩnh84/offset−100 vẫn nguyên; cả năm style tĩnh tạo plan và PNG được. UI trong EXE khớp byte với nguồn cuối.
+- Giao diện EXE thực: nhập52px và8 dòng bằng ô số cập nhật đúng slider/nhãn, nở khung lên trên. Tắt viền khóa riêng control viền, hai control mép vẫn chỉnh được. Đã đặt lại48px/5 dòng và viền2/blur3/85%/hai mép18 để kiểm tra nháp; khung mặc định371px, phát/tua/nhạc và chữ chuyển động hoạt động. Ảnh bảng thông số: `test_renders/verification/v13_scroll_controls.jpg`.
+- Các kiểm tra chỉ dùng --workspace riêng, không sửa hoặc reset dữ liệu/media/lượt footage thật. PLAN_VERSION tăng v13 để loại cache bố cục cũ.
+
 # Bổ sung V12 — CHỮ CUỘN ở đầu giao diện, mặc định bật (2026-10-29)
 
 - Đổi tên hiển thị thành **CHỮ CUỘN**, thay nút mẫu06 bằng công tắc bật/tắt ở panel đầu tiên, phía trên nội dung câu nói. Năm style tĩnh có nút riêng phía dưới; chọn style tĩnh tự tắt công tắc.
