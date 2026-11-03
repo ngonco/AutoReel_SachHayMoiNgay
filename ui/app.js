@@ -390,6 +390,8 @@ async function refreshMusicLibrary() {
   } catch(error){$('musicLibraryStatus').textContent='Không đọc được kho nhạc: '+error.message;}
 }
 function selectVideo(video) {
+  const option=state.plan?.footage_pool?.scene_choices?.[state.selectedScene]?.find(item=>item.path===video.path);
+  if(option&&!option.eligible){status('Không thể chọn clip này: '+option.reason+'. Hãy chọn clip ghi Phù hợp.',true);return;}
   draft?.unlockAudio();
   const legacy=state.currentVideo;
   state.currentVideo=video;
@@ -711,7 +713,7 @@ async function initApp() {
     document.querySelector('main').addEventListener('pointerdown',event=>{if(!event.target.closest('#btnListenMusic')){musicSample.pause();$('btnListenMusic').textContent='▶ Nghe nhạc';}},true);
     $('btnDownloadMusic').onclick=async()=>{try {await api('/api/download_music',{});await refreshMusicLibrary();}catch(error){$('musicLibraryStatus').textContent=error.message;}};
     $('btnOpenMusicFolder').onclick=()=>api('/api/open_music_folder',{}).catch(error=>status(error.message,true));
-    $('btnRandomVideo').onclick=()=>{if(state.videos.length)selectVideo(state.videos[Math.floor(Math.random()*state.videos.length)]);};
+    $('btnRandomVideo').onclick=()=>{const scene=state.plan?.scenes?.[state.selectedScene];const options=state.plan?.footage_pool?.scene_choices?.[state.selectedScene];const candidates=state.videos.filter(video=>video.path!==scene?.video_path&&(!options||options.some(item=>item.path===video.path&&item.eligible)));if(candidates.length)selectVideo(candidates[Math.floor(Math.random()*candidates.length)]);else status('Chưa có clip khác phù hợp với lượt dùng của cảnh này.',true);};
     document.querySelector('label[for="uploadVideoInput"]').onclick=async event=>{
       event.preventDefault();
       try {const result=await api('/api/select_video',{});if(result.video){if(!state.videos.some(v=>v.path===result.video.path))state.videos.push(result.video);state.settings.imported_video_paths=[...new Set([...(state.settings.imported_video_paths||[]),result.video.path])];state.inventoryReady=true;actionAvailability();selectVideo(result.video);}}
