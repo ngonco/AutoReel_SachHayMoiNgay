@@ -156,14 +156,18 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(fallback.get_quotes()[0]['quote'],'Câu cục bộ.')
             fallback.refresh();self.assertEqual(fallback.get_quotes()[0]['quote'],'Khôi phục.')
 
-    def test_catalog_api_and_batch_freeze_the_submitted_quote_list(self):
+    def test_catalog_api_and_batch_uses_saved_queue_independently(self):
         import app
         service=self.service(lambda:['Câu một.','Câu hai.']);service.refresh()
+        from core.export_queue import ExportQueue
+        queue=ExportQueue(self.root)
+        queue.change(dict(action='add',payload=dict(quote='Reel chờ riêng.')))
         submitted=[]
         class Detector:
             def scan_all_videos(inner,directory=None):return [dict(path='fixture.mp4')]
         class Jobs:
-            def batch(inner,items,detector):
+            def batch_queue(inner,detector):
+                items=queue.claim('frozen')
                 submitted.extend(items)
                 service.fetcher=lambda:['Câu hai đã sửa.','Bài mới.','Bài mới nữa.']
                 service.refresh()
@@ -179,8 +183,8 @@ class ServiceTests(unittest.TestCase):
                 self.assertEqual(len(api('/api/quotes')),2)
                 self.assertEqual(api('/api/quote_catalog')['sync']['interval_seconds'],1800)
                 job=api('/api/batch_render',{'async':True})
-                self.assertEqual(job['total'],2)
-                self.assertEqual([item['quote'] for item in submitted],['Câu một.','Câu hai.'])
+                self.assertEqual(job['total'],1)
+                self.assertEqual([item['quote'] for item in submitted],['Reel chờ riêng.'])
                 self.assertEqual(len(api('/api/quotes')),3)
                 status=api('/api/quote_sync',{})
                 self.assertTrue(status['syncing'])

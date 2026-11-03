@@ -746,3 +746,26 @@ button:disabled {opacity:.5;cursor:wait;transform:none !important;}
 .scroll-advanced{margin-top:10px;border:1px solid var(--bg-panel-border);border-radius:10px;padding:12px;}
 .scroll-advanced summary{cursor:pointer;color:var(--accent-gold);font-size:12px;font-weight:600;}
 .scroll-advanced[open] summary{margin-bottom:16px;}
+
+.footage-modal{width:min(90vw,1600px);max-width:90vw;height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.footage-modal.compact{width:min(760px,94vw);height:65vh;}
+.footage-modal .video-carousel{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--footage-size,120px),1fr));overflow-y:auto;overflow-x:hidden;min-height:0;flex:1;align-content:start;padding:8px;}
+.footage-modal .video-card{min-width:0;width:100%;align-self:start;}
+.footage-modal .video-card img{max-height:none;object-fit:cover;}
+.footage-modal .video-carousel::-webkit-scrollbar{width:9px;}
+#browserSceneButtons{flex-wrap:wrap;margin-bottom:10px;}
+.export-queue-list{max-height:48vh;overflow-y:auto;display:grid;gap:10px;margin:14px 0;}
+.queue-row{padding:12px;border:1px solid #344152;border-radius:10px;}
+.queue-row p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:90px;overflow:auto;}
+.queue-row .btn-group{flex-wrap:wrap;margin-top:8px;}
+#queueEditing{padding:10px;background:#354029;border-radius:8px;margin-bottom:12px;}
+@media(max-width:600px){.footage-modal{width:96vw;max-width:96vw;height:92vh;padding:12px}.footage-modal .video-carousel{grid-template-columns:repeat(auto-fill,minmax(min(var(--footage-size,120px),40vw),1fr));}}
+
+.footage-modal>label{display:flex;align-items:center;gap:12px;white-space:nowrap;margin:8px 0;}
+.footage-modal>label input{flex:1;min-width:0;}
+
+.footage-modal .video-carousel{grid-auto-rows:calc(var(--footage-size,120px) * 1.77778 + 70px);}
+.footage-modal .video-card{height:100%;display:flex;flex-direction:column;}
+.footage-modal .video-card img{height:calc(var(--footage-size,120px) * 1.77778);aspect-ratio:auto;flex-shrink:0;}
+.footage-modal .video-card-badge{position:static;display:block;flex-shrink:0;width:100%;box-sizing:border-box;}
+.footage-modal .footage-usage{overflow:hidden;}

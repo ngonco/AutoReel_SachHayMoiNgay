@@ -6,8 +6,8 @@ launchArgs = ""
 For Each launchArg In WScript.Arguments
     launchArgs = launchArgs & " " & Chr(34) & launchArg & Chr(34)
 Next
-strPathV13 = root & "\AutoReelSachHay_v14.exe"
-strPathDistV13 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v14.exe"
+strPathV13 = root & "\AutoReelSachHay_v15.exe"
+strPathDistV13 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v15.exe"
 strPathV12 = root & "\AutoReelSachHay_v12.exe"
 strPathDistV12 = root & "\dist\AutoReelSachHay\AutoReelSachHay_v12.exe"
 strPathV11 = root & "\AutoReelSachHay_v11.exe"

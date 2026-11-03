@@ -8,6 +8,7 @@ from core.renderer import render_plan
 from core.footage_pool import FootagePool,FootageConflict
 from core.persistence import file_mutex
 from core.quote_downloads import QuoteDownloadHistory
+from core.export_queue import ExportQueue
 
 
 class JobManager:
@@ -126,6 +127,13 @@ class JobManager:
         except Exception as error:
             with self.lock:self.jobs[job_id].update(status='error',error=f'Không lưu được video: {error}',message='Lưu video thất bại. Bản Full HD vẫn được giữ trong ứng dụng.')
 
+    def batch_queue(self,detector):
+        job_id=uuid.uuid4().hex
+        items=ExportQueue(self.workspace_dir).claim(job_id)
+        with self.lock:self.jobs[job_id]=dict(job_id=job_id,status='queued',progress=0,total=len(items),message='Đang chờ xuất danh sách…')
+        self.executor.submit(self._batch_work,job_id,items,detector)
+        return self.get(job_id)
+
     def batch(self,items,detector=None):
         items=[{k:v for k,v in item.items() if k not in ('scene_video_preferences','imported_video_paths')} for item in items]
         if detector is None:
@@ -144,6 +152,7 @@ class JobManager:
             def report(value,message):
                 with self.lock:self.jobs[job_id].update(progress=int((i+value/100)/len(items)*100),message=f'Reel {i+1}/{len(items)}: {message}')
             try:
+                if item.get('_queue_id'):ExportQueue(self.workspace_dir).progress(item['_queue_id'],job_id,'running')
                 # Build each batch plan after the previous reel has committed its footage turns.
                 payload={**item['settings'],'quote':item['quote'],'video_path':item['scenes'][0]['video_path']} if 'scenes' in item else item
                 payload={**payload,'previous_music_path':previous_music}
@@ -161,7 +170,9 @@ class JobManager:
                     self.pool.finish(token,True)
                     previous_music=(plan.get('music') or {}).get('path','')
                 files.append(target.name)
+                if item.get('_queue_id'):ExportQueue(self.workspace_dir).progress(item['_queue_id'],job_id,'done',result=dict(filename=target.name,url='/api/rendered_video/'+target.name))
             except Exception as error:
                 self.pool.finish(token,False)
                 failures.append(dict(index=i+1,error=str(error)))
+                if item.get('_queue_id'):ExportQueue(self.workspace_dir).progress(item['_queue_id'],job_id,'error',error=str(error))
         with self.lock:self.jobs[job_id].update(status='done',progress=100,result=dict(success=not failures,total_rendered=len(files),total_requested=len(items),files=files,failures=failures),message=f'Đã xuất {len(files)}/{len(items)} reel.')

@@ -39,6 +39,7 @@ function changedSettings(snapshot) {
 }
 function queueSave() {
   if(!state.ready)return;
+  captureQueueDraft();
   savePending=true;$('saveStatus').textContent='Đang lưu…';
   clearTimeout(saveTimer);saveTimer=setTimeout(flushSaves,250);
 }
@@ -50,6 +51,7 @@ async function flushSaves() {
       savePending=false;
       const snapshot=JSON.parse(JSON.stringify(payload())),patch=changedSettings(snapshot);
       if(Object.keys(patch).length)await api('/api/settings',{_client_id:saveClientId,_sequence:++saveSequence,_patch:patch});
+      await saveQueueDraft();
       lastSavedSettings=snapshot;
     }
     $('saveStatus').textContent='Đã lưu tự động';
@@ -249,12 +251,7 @@ function populateQuotes() {
   $('quoteSelect').value=state.currentQuoteIndex<0?'':String(state.currentQuoteIndex);
   $('quoteListLabel').textContent=`Chọn câu từ danh sách (${state.quotes.length} câu):`;
   updateQuoteCounter();
-  $('btnBatchRender').textContent=`⚡ Xuất nhiều Reel (${state.quotes.length})`;
-  if(state.busyBatch)return;
-  $('batchModal').querySelector('h2').textContent=`⚡ Xuất nhiều Reel · ${state.quotes.length} câu nói`;
-  $('batchModal').querySelector('p').textContent=`Xuất ${state.quotes.length} video Full HD, tự chia cảnh và ưu tiên footage ít dùng, tránh lặp câu trước khi còn lựa chọn.`;
-  $('batchStatus').textContent=`Sẵn sàng xuất ${state.quotes.length} video…`;
-  $('btnStartBatchRender').textContent=`Bắt đầu xuất ${state.quotes.length} video`;
+  if(typeof renderQueue==='function')renderQueue();
 }
 function updateQuoteCounter() {
   $('quoteCounter').textContent=state.currentQuoteIndex<0?`Bản nháp · ${state.quotes.length} câu`:`Câu ${state.currentQuoteIndex+1} / ${state.quotes.length}`;
@@ -335,7 +332,8 @@ async function syncQuotesNow() {
   try {renderQuoteSync(await api('/api/quote_sync',{}));setTimeout(refreshQuoteCatalog,1200);}
   catch(error){$('quoteSyncStatus').textContent=error.message;$('btnSyncQuotes').disabled=false;}
 }
-function loadQuote(index) {
+async function loadQuote(index) {
+  try{await saveQueueDraft();finishQueueEdit();}catch(error){status(error.message,true);return;}
   if (!state.quotes.length) return;
   state.currentQuoteIndex=(index+state.quotes.length)%state.quotes.length;
   $('quoteSelect').value=state.currentQuoteIndex;
@@ -345,7 +343,7 @@ function loadQuote(index) {
   invalidate();
 }
 function populateVideos() {
-  const scroll=$('videoCarousel').scrollLeft;
+  const scroll=$('videoCarousel').scrollTop;
   $('videoCarousel').replaceChildren();
   const options=state.plan?.footage_pool?.scene_choices?.[state.selectedScene]||[];
   const current=state.plan?.scenes?.[state.selectedScene]?.video_path;
@@ -362,7 +360,7 @@ function populateVideos() {
     const info=document.createElement('span');info.className='footage-usage';info.textContent=option?`${option.effective_count} lượt · ${option.eligible?'Phù hợp':option.reason}`:'';
     card.append(img,badge,info);card.onclick=()=>selectVideo(video);$('videoCarousel').append(card);
   });
-  $('videoCarousel').scrollLeft=scroll;
+  $('videoCarousel').scrollTop=scroll;
   $('videoCountBadge').textContent=`${state.videos.length} clip`;
 }
 function populateMusic() {
@@ -409,8 +407,9 @@ function selectVideo(video) {
 function actionAvailability() {
   const blocked=state.busyExport||state.busyBatch||state.busyLibrary||!state.inventoryReady;
   $('btnDownloadVideo').disabled=blocked;
-  $('btnBatchRender').disabled=blocked||!state.quotes.length;
-  $('btnStartBatchRender').disabled=blocked||!state.quotes.length;
+  $('btnBatchRender').disabled=state.busyExport;
+  $('btnExportLater').disabled=blocked;
+  $('btnStartBatchRender').disabled=blocked||!exportItems.some(i=>['pending','error'].includes(i.status));
   ['btnSelectVideoDirectory','btnRefreshVideos','btnDefaultVideoDirectory'].forEach(id=>{
     $(id).disabled=state.busyLibrary||state.busyExport||state.busyBatch;
   });
@@ -638,17 +637,18 @@ async function downloadVideo() {
   finally {exportBusy(false);}
 }
 async function renderBatch() {
-  state.batchTotal=state.quotes.length;state.busyBatch=true;actionAvailability();
+  await saveQueueDraft();finishQueueEdit();state.batchTotal=exportItems.filter(i=>['pending','error'].includes(i.status)).length;state.busyBatch=true;actionAvailability();
   try {
-    const result=await pollJob(await api('/api/batch_render',{...payload(),async:true}),job=>{
+    const result=await pollJob(await api('/api/batch_render',{async:true}),job=>{
       if(job.total)state.batchTotal=job.total;
-      $('batchStatus').textContent=job.message;$('batchPercent').textContent=job.progress+'%';$('batchBarFill').style.width=job.progress+'%';
+      refreshExportQueue().catch(()=>{});$('batchStatus').textContent=job.message;$('batchPercent').textContent=job.progress+'%';$('batchBarFill').style.width=job.progress+'%';
     });
     $('batchStatus').textContent=`Đã xuất ${result.total_rendered}/${result.total_requested??state.batchTotal} reel.`+(result.failures.length?' Lỗi: '+result.failures.map(f=>`Câu ${f.index}: ${f.error}`).join('; '):'');
   } catch(error) {$('batchStatus').textContent=error.message;}
-  finally {state.busyBatch=false;actionAvailability();}
+  finally {state.busyBatch=false;await refreshExportQueue();actionAvailability();}
 }
 async function initApp() {
+  await initStudioLists();
   showStatic();status('Đang đọc nội dung và kho clip…');
   try {
     let libraryError='';
@@ -661,7 +661,7 @@ async function initApp() {
     state.downloadRecords=catalog.download_history.records;state.downloadRevision=catalog.download_history.revision;
     populateQuotes();
     if(startup.index>=0){
-      loadQuote(startup.index);
+      await loadQuote(startup.index);
       if(quoteIdentity(settings.quote||'')!==quoteIdentity(quotes[startup.index].quote))state.settings.scene_video_preferences={};
       if(quoteIdentity(settings.quote||'')!==quoteIdentity(quotes[startup.index].quote))state.settings.music_seed=crypto.randomUUID();
     } else {$('quoteInput').value=settings.quote||'';state.currentQuoteIndex=-1;}
@@ -722,9 +722,9 @@ async function initApp() {
     $('btnWatchRendered').onclick=()=>{draft?.pause();if(state.lastRenderedUrl&&state.plan)playUrl(state.lastRenderedUrl,'export',state.plan).catch(error=>status(error.message,true));};
     $('btnOpenFolder').onclick=()=>api('/api/open_folder',{}).catch(error=>status(error.message,true));
     $('btnDownloadVideo').onclick=downloadVideo;
-    $('btnBatchRender').onclick=()=>{if(!state.busyBatch)populateQuotes();$('batchModal').classList.add('active');};
+    $('btnBatchRender').onclick=async()=>{try{await saveQueueDraft();await refreshExportQueue();$('batchModal').classList.add('active');}catch(error){status(error.message,true);}};
     $('btnCloseBatchModal').onclick=()=>$('batchModal').classList.remove('active');
-    $('btnStartBatchRender').onclick=renderBatch;
+    $('btnStartBatchRender').onclick=()=>renderBatch().catch(e=>status(e.message,true));
     player.onplay=()=>{$('btnTogglePlayVideo').textContent='⏸ Tạm dừng reel';};
     player.onpause=()=>{$('btnTogglePlayVideo').textContent='▶ Tiếp tục reel';};
     player.onended=()=>{$('btnTogglePlayVideo').textContent='↻ Phát lại toàn bộ reel';status('Đã phát hết câu nói. Có thể phát lại từ đầu.');};
@@ -756,6 +756,7 @@ async function initApp() {
 }
 async function restorePreviousDraft() {
   try {
+    await saveQueueDraft();finishQueueEdit();
     const recovery=await api('/api/previous_draft');const saved=recovery.settings;
     const {background_video_directory,last_save_directory,...draftSettings}=saved;
     state.startupAwaitingSheet=false;
@@ -771,3 +772,100 @@ async function restorePreviousDraft() {
 }
 window.addEventListener('DOMContentLoaded',initApp);
 window.addEventListener('pagehide',()=>{draft?.clear();saveBeforeExit();});
+
+
+let exportItems=[],editingQueueId=null,queuePending=null,queueWrite=Promise.resolve(),footagePrefs={expanded:true,size:120,filter:'all',scroll:0,search:''},browserSaveTimer;
+function captureQueueDraft(){if(editingQueueId)queuePending={id:editingQueueId,payload:JSON.parse(JSON.stringify(payload()))};}
+async function saveQueueDraft(){
+  const pending=queuePending;if(!pending)return queueWrite;
+  queuePending=null;
+  queueWrite=queueWrite.catch(()=>{}).then(async()=>{
+    try {await api('/api/export_queue',{action:'update',...pending});}
+    catch(error){if(!queuePending)queuePending=pending;throw error;}
+  });
+  return queueWrite;
+}
+function renderQueue(){
+  const labels={pending:'Chờ xuất',queued:'Đang chờ trong lượt xuất',running:'Đang xuất',done:'Đã xuất',error:'Lỗi · cần thử lại'};
+  const count=exportItems.filter(i=>['pending','error'].includes(i.status)).length;
+  $('btnBatchRender').textContent=`⚡ Xuất nhiều Reel (${count})`;
+  $('batchModal').querySelector('h2').textContent='Danh sách Reel chờ xuất';
+  $('batchModal').querySelector('p').textContent='Chỉ xuất các Reel chờ hoặc bị lỗi trong danh sách này. Mở Sửa để cập nhật bản mới nhất.';
+  $('btnStartBatchRender').textContent=`Xuất ${count} Reel đang chờ`;
+  $('btnStartBatchRender').disabled=state.busyBatch||!count;
+  const list=$('exportQueueList');list.replaceChildren();
+  if(!exportItems.length)list.textContent='Danh sách trống. Bấm Xuất video sau để thêm Reel đang soạn.';
+  exportItems.forEach((item,index)=>{
+    const row=document.createElement('div');row.className='queue-row';
+    const title=document.createElement('strong');title.textContent=`${index+1}. ${labels[item.status]}`;
+    const text=document.createElement('p');text.textContent=item.payload.quote;
+    const tools=document.createElement('div');tools.className='btn-group';
+    const locked=['queued','running'].includes(item.status);
+    const button=(label,action,disabled=locked)=>{const b=document.createElement('button');b.className='btn small';b.textContent=label;b.disabled=disabled;b.onclick=()=>Promise.resolve(action()).catch(e=>status(e.message,true));tools.append(b);};
+    button('Sửa',()=>editQueuedReel(item));
+    button('Xóa',async()=>{await saveQueueDraft();await api('/api/export_queue',{action:'delete',id:item.id});if(editingQueueId===item.id)finishQueueEdit();await refreshExportQueue();});
+    button('↑',()=>moveQueue(item,-1),locked||index===0);button('↓',()=>moveQueue(item,1),locked||index===exportItems.length-1);
+    if(item.result?.url){const a=document.createElement('a');a.className='btn small';a.href=item.result.url;a.target='_blank';a.textContent='Mở kết quả';tools.append(a);}
+    row.append(title,text,tools);if(item.error){const error=document.createElement('p');error.textContent=item.error;row.append(error);}list.append(row);
+  });
+}
+async function refreshExportQueue(){const data=await api('/api/export_queue');exportItems=data.items;const current=exportItems.find(i=>i.id===editingQueueId);if(editingQueueId&&(!current||['queued','running'].includes(current.status))){finishQueueEdit();queuePending=null;status('Reel đã được khóa để xuất hoặc bị xóa ở phiên khác. Bản soạn trên màn hình vẫn được giữ.',true);}renderQueue();}
+async function moveQueue(item,direction){await saveQueueDraft();await api('/api/export_queue',{action:'move',id:item.id,direction});await refreshExportQueue();}
+function finishQueueEdit(){editingQueueId=null;$('queueEditing').hidden=true;}
+async function editQueuedReel(item){
+  await saveQueueDraft();
+  const current=(await api('/api/export_queue')).items.find(i=>i.id===item.id);
+  if(!current||['queued','running'].includes(current.status))throw new Error('Reel đang xuất hoặc đã bị xóa.');
+  finishQueueEdit();state.settings={...current.payload};
+  $('quoteInput').value=current.payload.quote;$('creditInput').value=current.payload.credit;
+  state.currentQuoteIndex=state.quotes.findIndex(q=>q.quote===current.payload.quote);
+  state.currentVideo=state.videos.find(v=>v.path===current.payload.video_path)||{path:current.payload.video_path};
+  for(const path of current.payload.imported_video_paths||[])if(!state.videos.some(v=>v.path===path))state.videos.push({path,name:path.split(/[\\/]/).pop(),thumb_url:''});
+  state.preferencesContent=undefined;state.contextQuote=current.payload.quote.trim().split(/\s+/).join(' ');
+  $('safeZoneCheck').checked=!!current.payload.safe_zone;$('safeZoneOverlay').classList.toggle('visible',!!current.payload.safe_zone);
+  populateQuotes();updateDownloadStatus();populateMusic();applySettings();invalidate({preserveScene:true});
+  editingQueueId=item.id;$('queueEditing').hidden=false;$('batchModal').classList.remove('active');
+}
+async function addExportLater(){
+  await saveQueueDraft();
+  if(editingQueueId){captureQueueDraft();await saveQueueDraft();}
+  else {
+    const plan=await ensurePlan();const snapshot=JSON.parse(JSON.stringify(payload()));
+    snapshot.scene_video_preferences=Object.fromEntries(plan.scenes.map((scene,index)=>[index,{path:scene.video_path,text:scene.text}]));
+    snapshot.music_mode=plan.music?'selected':'none';snapshot.music_path=plan.music?.path||'';
+    const result=await api('/api/export_queue',{action:'add',payload:snapshot});state.settings.scene_video_preferences=snapshot.scene_video_preferences;state.settings.music_mode=snapshot.music_mode;state.settings.music_path=snapshot.music_path;editingQueueId=result.selected_id;$('queueEditing').hidden=false;
+  }
+  await refreshExportQueue();status('Đã lưu Reel vào danh sách xuất sau.');
+}
+function saveBrowserPreferences(){
+  footagePrefs={expanded:!$('footageWindow').classList.contains('compact'),size:Number($('footageSize').value),filter:$('footageFilter').value,search:$('footageSearch').value,scroll:$('videoCarousel').scrollTop};
+  clearTimeout(browserSaveTimer);browserSaveTimer=setTimeout(()=>api('/api/footage_browser',footagePrefs).catch(e=>status('Chưa lưu được cửa sổ footage: '+e.message,true)),250);
+}
+function applyBrowserPreferences(){
+  $('footageWindow').classList.toggle('compact',!footagePrefs.expanded);$('footageWindow').style.setProperty('--footage-size',footagePrefs.size+'px');
+  $('btnResizeFootage').textContent=footagePrefs.expanded?'Thu nhỏ':'Mở rộng';$('footageSize').value=footagePrefs.size;
+}
+async function initStudioLists(){
+  try {await refreshExportQueue();footagePrefs=await api('/api/footage_browser');}catch(error){status(error.message,true);}
+  $('footageSearch').value=footagePrefs.search;$('footageFilter').value=footagePrefs.filter;applyBrowserPreferences();
+  $('btnExportLater').onclick=()=>addExportLater().catch(e=>status(e.message,true));
+  $('btnFinishQueueEdit').onclick=async()=>{try{await saveQueueDraft();finishQueueEdit();await refreshExportQueue();}catch(e){status(e.message,true);}};
+  $('btnOpenFootage').onclick=()=>{
+    $('footageModal').classList.add('active');populateVideos();$('videoCarousel').scrollTop=footagePrefs.scroll;
+    $('browserSceneButtons').replaceChildren();
+    (state.plan?.scenes||[]).forEach((scene,index)=>{const b=document.createElement('button');b.className='btn small';b.textContent='Cảnh '+(index+1);b.onclick=()=>{state.selectedScene=index;populateVideos();$('browserSceneLabel').textContent='Chọn footage cho cảnh '+(index+1);};$('browserSceneButtons').append(b);});
+    $('browserSceneLabel').textContent='Chọn footage cho cảnh '+(state.selectedScene+1);$('btnCloseFootage').focus();
+  };
+  const close=()=>{saveBrowserPreferences();$('footageModal').classList.remove('active');$('btnOpenFootage').focus();};
+  $('btnCloseFootage').onclick=close;
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('footageModal').classList.contains('active'))close();});
+  $('btnResizeFootage').onclick=()=>{footagePrefs.expanded=!footagePrefs.expanded;applyBrowserPreferences();saveBrowserPreferences();};
+  $('footageSize').oninput=()=>{footagePrefs.size=Number($('footageSize').value);applyBrowserPreferences();saveBrowserPreferences();};
+  $('videoCarousel').onscroll=saveBrowserPreferences;
+  $('footageSearch').addEventListener('input',saveBrowserPreferences);$('footageFilter').addEventListener('change',saveBrowserPreferences);
+  setInterval(()=>{if($('batchModal').classList.contains('active'))refreshExportQueue().catch(e=>status(e.message,true));},5000);
+  window.addEventListener('beforeunload',()=>{
+    if(queuePending)navigator.sendBeacon('/api/export_queue',new Blob([JSON.stringify({action:'update',...queuePending})],{type:'application/json'}));
+    navigator.sendBeacon('/api/footage_browser',new Blob([JSON.stringify(footagePrefs)],{type:'application/json'}));
+  });
+}

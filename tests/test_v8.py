@@ -90,7 +90,7 @@ class SelectionTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
         self.videos=[]
         for i in range(5):
-            path=self.root/f'{i}.mp4';path.write_bytes(f'footage-{i}'.encode())
+            path=self.root/f'{i*100}.mp4';path.write_bytes(f'footage-{i}'.encode())
             self.videos.append(dict(path=str(path),name=path.name,is_vertical=True))
         self.pool=FootagePool(self.root)
 

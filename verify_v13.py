@@ -50,7 +50,7 @@ def launch(workspace,source=False,port=8899):
         try:
             h=api(base,'/api/health');p=psutil.Process(h['pid'])
             assert h['version']=='multi-scene-v13' and str(workspace) in p.cmdline()
-            if not source:assert Path(p.exe()).name=='AutoReelSachHay_v14.exe'
+            if not source:assert Path(p.exe()).name=='AutoReelSachHay_v15.exe'
             return base,h['pid']
         except OSError:time.sleep(.3)
     raise TimeoutError('V13 did not start through launcher')
@@ -59,7 +59,7 @@ def launch(workspace,source=False,port=8899):
 def stop_owned(pid,workspace):
     process=psutil.Process(pid);assert str(workspace) in process.cmdline()
     parent=process.parent();owned=[process,*process.children(recursive=True)]
-    if parent and Path(parent.exe()).name=='AutoReelSachHay_v14.exe' and str(workspace) in parent.cmdline():owned.append(parent)
+    if parent and Path(parent.exe()).name=='AutoReelSachHay_v15.exe' and str(workspace) in parent.cmdline():owned.append(parent)
     for item in owned:
         try:item.terminate()
         except psutil.NoSuchProcess:pass

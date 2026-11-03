@@ -10,7 +10,7 @@ from core.settings import normalize_settings, load_settings
 from core.footage_pool import FootagePool
 from core.persistence import atomic_json
 
-PLAN_VERSION = 'multi-scene-v14-manual-footage-number-spacing-1'
+PLAN_VERSION = 'multi-scene-v15-persistent-export-list-1'
 
 
 def fingerprint(path):

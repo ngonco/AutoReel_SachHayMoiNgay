@@ -48,3 +48,9 @@ quote_download_history.json.*.tmp
 draft_recovery.json
 draft_recovery.lock
 draft_recovery.json.*.tmp
+
+export_queue.json*
+export_queue.lock
+footage_browser.json*
+footage_browser.lock
+*.lnk

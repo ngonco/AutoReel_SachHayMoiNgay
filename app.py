@@ -36,6 +36,7 @@ from core.draft_media import DraftMediaService
 from core.quote_downloads import QuoteDownloadHistory
 from core.music_library import MusicLibraryService, music_tracks
 from core.settings import normalize_settings, save_settings_patch, load_settings
+from core.export_queue import ExportQueue, FootagePreferences
 from core.jobs import JobManager
 from core.downloads import SaveVideoService
 from core.video_library import VideoLibraryService
@@ -68,6 +69,8 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
             if path in ('/', '/index.html', '/app.js', '/draft_player.js', '/scroll_player.js', '/style.css'):
                 name = 'index.html' if path == '/' else path[1:]
                 return self._serve_file(BUNDLE_DIR / 'ui' / name, {'index.html': 'text/html; charset=utf-8', 'app.js': 'application/javascript; charset=utf-8', 'scroll_player.js':'application/javascript; charset=utf-8', 'draft_player.js':'application/javascript; charset=utf-8', 'style.css': 'text/css; charset=utf-8'}[name])
+            if path == '/api/export_queue':return self._send_json(ExportQueue(BASE_DIR).snapshot())
+            if path == '/api/footage_browser':return self._send_json(FootagePreferences(BASE_DIR).get())
             if path == '/api/health':
                 return self._send_json(dict(success=True, version='multi-scene-v13', pid=os.getpid()))
             if path == '/api/quotes':
@@ -187,6 +190,8 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                 from core.music_library import music_folder
                 folder=music_folder(BASE_DIR,read_settings());folder.mkdir(parents=True,exist_ok=True)
                 os.startfile(str(folder));return self._send_json(dict(success=True))
+            if path == '/api/export_queue':return self._send_json(ExportQueue(BASE_DIR).change(body))
+            if path == '/api/footage_browser':return self._send_json(FootagePreferences(BASE_DIR).save(body))
             if path == '/api/plan':
                 return self._send_json(build_plan(body, BASE_DIR, video_detector))
             if path == '/api/draft_prepare':
@@ -212,15 +217,7 @@ class ReelRequestHandler(SimpleHTTPRequestHandler):
                     job = jobs.get(job['job_id'])
                 return self._send_json(job.get('result', dict(success=False, error=job.get('error'))))
             if path == '/api/batch_render':
-                body = {**{k:v for k,v in body.items() if k not in ('scene_video_preferences','imported_video_paths')}, 'background_video_directory': body.get('background_video_directory', read_settings()['background_video_directory'])}
-                videos = video_detector.scan_all_videos(body['background_video_directory'])
-                if not videos:
-                    raise ValueError('Kho video trống.')
-                quotes = quote_sync.get_quotes()
-                if not quotes:
-                    raise ValueError('Sheet chưa có câu nói để xuất nhiều Reel.')
-                items = [{**body, 'quote': q['quote'], 'previous_footage_ids': [], 'video_path': videos[i % len(videos)]['path']} for i, q in enumerate(quotes)]
-                job = jobs.batch(items, video_detector)
+                job = jobs.batch_queue(video_detector)
                 if body.get('async'):
                     return self._send_json(job, 202)
                 while job['status'] not in ('done', 'error'):

@@ -19,6 +19,7 @@
       <div class="badge gold">9:16 • 1080×1920</div>
       <div class="badge">Nhiều cảnh • Đủ thời gian đọc</div>
       <button class="btn primary small" id="btnDownloadVideo" disabled title="Lưu Full HD vào nơi đã chọn; tên gợi ý từ 5 từ đầu câu nói">⬇ Tải video</button>
+      <button class="btn small" id="btnExportLater">＋ Xuất video sau</button>
       <button class="btn secondary small" id="btnBatchRender" disabled>⚡ Xuất nhiều Reel</button>
       <button class="btn small" id="btnOpenFolder">📂 Thư mục video đã xuất</button>
     </div>
@@ -122,19 +123,13 @@
 
         <div class="field">
           <div class="scene-heading"><strong>Kịch bản Reel</strong><span class="panel-sub" id="sceneHelp">Bấm cảnh → chọn footage bên dưới → xem ngay cảnh vừa đổi</span></div>
+          <div id="queueEditing" hidden><strong>Đang sửa Reel trong danh sách</strong> <button class="btn small" id="btnFinishQueueEdit">Kết thúc sửa</button></div>
           <div id="sceneList" class="scene-list"></div>
           <div class="footage-toolbar">
             <strong id="footageTargetLabel">Chọn footage cho cảnh 1</strong>
             <button class="btn small" id="btnResetSceneVideo">↻ Tự chọn lại</button>
           </div>
-          <div class="footage-tools">
-            <input type="search" id="footageSearch" placeholder="Tìm video theo tên…" aria-label="Tìm footage theo tên">
-            <select id="footageFilter" aria-label="Lọc footage"><option value="all">Tất cả footage</option><option value="suitable">Phù hợp cảnh này</option></select>
-          </div>
-          <p class="panel-sub">Gợi ý được xét sau chống lặp và lượt dùng. Clip thực tế cùng lý do thay thế hiển thị ở cảnh đang chọn.</p>
-          <div class="video-carousel" id="videoCarousel">
-            <!-- Render bằng JavaScript -->
-          </div>
+          <button class="btn" id="btnOpenFootage">▦ Mở kho footage</button>
           <div class="library-settings">
             <strong>Folder video nền</strong>
             <p id="backgroundDirectory" class="library-path">Kho mặc định</p>
@@ -338,17 +333,30 @@
     </aside>
   </main>
 
+<div class="modal-overlay" id="footageModal" role="dialog" aria-modal="true" aria-label="Kho footage">
+<div class="modal footage-modal" id="footageWindow"><div class="footage-toolbar"><strong id="browserSceneLabel">Kho footage</strong><div><button class="btn small" id="btnResizeFootage">Thu nhỏ</button> <button class="btn small" id="btnCloseFootage">Đóng</button></div></div>
+<div id="browserSceneButtons" class="btn-group"></div><label>Cỡ ảnh <input id="footageSize" type="range" min="80" max="200" value="120"></label>
+          <div class="footage-tools">
+            <input type="search" id="footageSearch" placeholder="Tìm video theo tên…" aria-label="Tìm footage theo tên">
+            <select id="footageFilter" aria-label="Lọc footage"><option value="all">Tất cả footage</option><option value="suitable">Phù hợp cảnh này</option></select>
+          </div>
+          <p class="panel-sub">Chọn thủ công dùng đúng clip bạn chọn. Nhãn Phù hợp chỉ dành cho chọn tự động.</p>
+          <div class="video-carousel" id="videoCarousel">
+            <!-- Render bằng JavaScript -->
+          </div>
+</div></div>
   <!-- MODAL RENDER HÀNG LOẠT -->
   <div class="modal-overlay" id="batchModal">
     <div class="modal">
-      <h2 style="font-size:18px; margin-bottom:8px; color:var(--accent-gold);">⚡ Render hàng loạt 16 câu nói</h2>
+      <h2 style="font-size:18px; margin-bottom:8px; color:var(--accent-gold);">Danh sách Reel chờ xuất</h2>
       <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
         Hệ thống sẽ tự động ghép từng câu nói với các video tượng Phật ngẫu nhiên/tuần tự, tự động phát hiện vị trí tránh che mặt Phật và xuất ra 16 video Full HD 1080x1920 hoàn chỉnh!
       </p>
 
+      <div id="exportQueueList" class="export-queue-list"></div>
       <div class="progress-box active" style="margin-bottom:18px;">
         <div class="progress-text">
-          <span id="batchStatus">Sẵn sàng xuất 16 video...</span>
+          <span id="batchStatus">Chọn các Reel chờ để bắt đầu xuất.</span>
           <b id="batchPercent">0%</b>
         </div>
         <div class="progress-bar-bg">
@@ -358,7 +366,7 @@
 
       <div style="display:flex; justify-content:flex-end; gap:10px;">
         <button class="btn" id="btnCloseBatchModal">Đóng</button>
-        <button class="btn primary" id="btnStartBatchRender">Bắt đầu Render 16 Video</button>
+        <button class="btn primary" id="btnStartBatchRender">Xuất Reel đang chờ</button>
       </div>
     </div>
   </div>
