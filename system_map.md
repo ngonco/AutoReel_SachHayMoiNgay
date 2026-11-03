@@ -327,3 +327,12 @@ Các helper verify_v5/verify_v8/verify_v9 lưu lại quy trình của phiên b�
 
 ## 2026-11-03 — Footage selection
 Random footage excludes the current clip and ineligible choices. Manual ineligible choices report the server reason immediately. Fair-use planning and footage history are preserved. Launcher targets AutoReelSachHay_v13_1.exe to preserve running v13 sessions. Start Menu shortcut targets the stable VBS launcher. Node UI and draft-player checks passed; packaged launcher/preview/restart verification passed on isolated profile. Footage UI regression passed against JavaScript served by the final packaged EXE. Build completed with python -X utf8 build_onefile.py. Start Menu Programs shortcut installed; pinned-grid placement not verified.
+
+
+## 2026-11-03 — Manual footage override and numeric separation
+
+- Explicit scene_video_preferences matching scene text now override automatic usage, previous-Reel and within-Reel repeat preferences. Missing or stale selections are still validated. Legacy video_path remains an automatic first-scene hint; UI writes explicit choices into scene_video_preferences.
+- Plan footage_pool.manual_scenes records overridden scene indices; reservation and validate_export carry these indices and bypass allocation fairness only for these scenes. Source validation, revision checks, JobManager, reservations and successful-export count commits remain active. Manual exports still consume footage turns.
+- Automatic allocation expands previous successful Reel IDs and requested previous IDs to footage whose final numeric group in its filename differs by at most 5 (e.g. IMG_3381 and IMG_3386). Applies across repeat exports of the same quote too. Unnumbered files retain identity avoidance. Existing exhaustion fallback remains when no fresh candidate is available. Manual selections take priority over this avoidance.
+- PLAN_VERSION=multi-scene-v14-manual-footage-number-spacing-1. Build and stable launchers now target AutoReelSachHay_v14.exe, preserving running old sessions and the Start Menu launcher shortcut. Health stays multi-scene-v13 because HTTP/render schema is compatible.
+- verify_manual_footage.py exercises packaged manual selection, numeric avoidance and tracked Full HD exports on an isolated profile; never uses real footage history.

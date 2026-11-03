@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import time
 from core.persistence import file_mutex,read_json,atomic_json
@@ -86,9 +87,14 @@ class FootagePool:
 
     @staticmethod
     def _avoid(state, requested, quote):
-        previous = state.get('last_export', {})
-        return set(requested) | (set(previous.get('ids', []))
-                                 if quote and previous.get('quote') != quote else set())
+        previous = set(state.get('last_export', {}).get('ids', [])) | set(requested)
+        inventory = state['inventory']
+        def number(video):
+            match = re.search(r'(\d+)(?!.*\d)', Path(video.get('name') or video['path']).stem)
+            return int(match.group()) if match else None
+        numbers = [number(inventory[key]) for key in previous if key in inventory]
+        return previous | {key for key, video in inventory.items()
+                           if number(video) is not None and any(n is not None and abs(number(video)-n) <= 5 for n in numbers)}
 
     def preview(self,videos,count,preferred=None,avoid_ids=None,quote='',scene_preferences=None):
         with file_mutex(self.lock):
@@ -119,7 +125,7 @@ class FootagePool:
             remaining=sum(v==minimum for v in effective.values())
             requested = sorted(set(avoid_ids or []))
             avoid = self._avoid(state, requested, quote)
-            result=[];used=set();seen=set();fallback=[];repeated=[];choices=[];suggestions=[]
+            result=[];used=set();seen=set();fallback=[];repeated=[];choices=[];suggestions=[];manual=[]
             for i in range(count):
                 eligible=self._candidates(ordered,effective,used,avoid,last)
                 requested_path=(scene_preferences or {}).get(i)
@@ -134,7 +140,9 @@ class FootagePool:
                     options.append(dict(footage_id=candidate,path=inventory[candidate]['path'],eligible=candidate in eligible,
                                         effective_count=effective[candidate],reason=reason))
                 choices.append(options)
-                key=wanted if wanted in eligible else next(k for k in ordered if k in eligible)
+                is_manual=bool(requested_path and wanted in inventory)
+                key=wanted if is_manual or wanted in eligible else next(k for k in ordered if k in eligible)
+                if is_manual:manual.append(i)
                 suggestions.append(dict(requested_path=requested_path or (preferred['path'] if i==0 and preferred else ''),
                                         accepted=bool(wanted==key),reason=next((o['reason'] for o in options if o['footage_id']==wanted),
                                         'Clip gợi ý không còn trong nguồn khả dụng') if wanted!=key else ''))
@@ -147,9 +155,9 @@ class FootagePool:
                                preferred_replaced=bool(preferred_key and result and result[0][0]!=preferred_key),
                                active_ids=ordered,avoid_ids=sorted(avoid),requested_avoid_ids=requested,
                                quote=quote,fallback_scenes=fallback,repeated_scenes=repeated,
-                               scene_choices=choices,scene_suggestions=suggestions)
+                               scene_choices=choices,scene_suggestions=suggestions,manual_scenes=manual)
 
-    def _check_sequence(self,state,ids,active,avoid,include_reserved=False):
+    def _check_sequence(self,state,ids,active,avoid,include_reserved=False,manual_scenes=()):
         if not active or any(key not in state['inventory'] for key in active):
             raise FootageConflict('Kho footage đã thay đổi. Hãy cập nhật kịch bản.')
         counts={key:state['counts'].get(key,0) for key in active}
@@ -159,8 +167,8 @@ class FootagePool:
                 for key in reservation['ids']:
                     if key in counts:counts[key]+=1
                 if reservation['ids']:last=reservation['ids'][-1]
-        for key in ids:
-            if key not in self._candidates(active,counts,used,avoid,last):
+        for index,key in enumerate(ids):
+            if key not in active or (index not in manual_scenes and key not in self._candidates(active,counts,used,avoid,last)):
                 raise FootageConflict('Lượt dùng hoặc câu trước vừa thay đổi. Hãy cập nhật kịch bản chống lặp.')
             if len(used)==len(active):used.clear()
             used.add(key);counts[key]+=1;last=key
@@ -177,9 +185,9 @@ class FootagePool:
             requested=context.get('requested_avoid_ids',[])
             quote=context.get('quote','')
             avoid=self._avoid(state,requested,quote)
-            self._check_sequence(state,ids,active,avoid,True)
+            self._check_sequence(state,ids,active,avoid,True,context.get('manual_scenes',[]))
             state['reservations'][job_id]=dict(ids=ids,pid=os.getpid(),created_at=time.time(),
-                                               active_ids=active,requested_avoid_ids=requested,quote=quote)
+                                               active_ids=active,requested_avoid_ids=requested,quote=quote,manual_scenes=context.get('manual_scenes',[]))
             state['revision']+=1;atomic_json(self.path,state)
 
     def validate_export(self,job_id):
@@ -188,7 +196,8 @@ class FootagePool:
             reservation=state['reservations'].get(job_id)
             if not reservation:raise FootageConflict('Lượt footage đã hết hiệu lực. Hãy cập nhật kịch bản.')
             self._check_sequence(state,reservation['ids'],reservation.get('active_ids',list(state['inventory'])),
-                                 self._avoid(state,reservation.get('requested_avoid_ids',[]),reservation.get('quote','')))
+                                 self._avoid(state,reservation.get('requested_avoid_ids',[]),reservation.get('quote','')),
+                                 manual_scenes=reservation.get('manual_scenes',[]))
 
     def finish(self,job_id,success):
         with file_mutex(self.lock):

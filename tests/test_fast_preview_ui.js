@@ -37,12 +37,6 @@ function fixture(){
     f.element('quoteInput').value='Câu mới.';f.run('invalidate()');
     assert.equal(f.run('Object.keys(state.settings.scene_video_preferences).length'),0);
   }
-  {
-    const f=fixture();
-    f.run("state.plan.footage_pool={scene_choices:[[{path:'blocked.mp4',eligible:false,reason:'Có clip ít lượt dùng hơn'}]]};state.selectedScene=0;status=message=>{blockedMessage=message;};selectVideo({path:'blocked.mp4'});");
-    assert.match(f.run('blockedMessage'),/Có clip ít lượt dùng hơn/);
-    assert.equal(f.run('Object.keys(state.settings.scene_video_preferences).length'),0);
-  }
   const source=fs.readFileSync('ui/app.js','utf8');
   assert.equal(source.includes("api('/api/preview'"),false,'UI no longer creates whole-Reel draft MP4 jobs');
   const html=fs.readFileSync('ui/index.html','utf8');

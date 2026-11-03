@@ -390,8 +390,6 @@ async function refreshMusicLibrary() {
   } catch(error){$('musicLibraryStatus').textContent='Không đọc được kho nhạc: '+error.message;}
 }
 function selectVideo(video) {
-  const option=state.plan?.footage_pool?.scene_choices?.[state.selectedScene]?.find(item=>item.path===video.path);
-  if(option&&!option.eligible){status('Không thể chọn clip này: '+option.reason+'. Hãy chọn clip ghi Phù hợp.',true);return;}
   draft?.unlockAudio();
   const legacy=state.currentVideo;
   state.currentVideo=video;

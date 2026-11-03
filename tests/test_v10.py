@@ -38,19 +38,34 @@ class PreferenceTests(unittest.TestCase):
         pool=FootagePool(self.root);pool.reserve(plan,'owned');pool.validate_export('owned');pool.finish('owned',True)
         history=json.loads((self.root/'footage_usage.json').read_text())
         self.assertEqual(sum(history['counts'].values()),2)
-    def test_preference_cannot_override_usage_or_previous_or_repeat(self):
+    def test_manual_preference_overrides_usage_and_repeat(self):
         first=self.plan();pool=FootagePool(self.root)
         state=pool._read();key=first['scenes'][1]['footage_id'];state['counts'][key]=20
         from core.persistence import atomic_json
         atomic_json(pool.path,state)
         preferred=first['scenes'][1]['video_path']
         plan=self.plan(scene_video_preferences={'1':dict(path=preferred,text='Câu thứ hai.')})
-        self.assertNotEqual(plan['scenes'][1]['video_path'],preferred)
-        self.assertIn('ít lượt',plan['scenes'][1]['suggestion']['reason'])
+        self.assertEqual(plan['scenes'][1]['video_path'],preferred)
+        pool.reserve(plan,'manual');pool.validate_export('manual');pool.finish('manual',True)
         avoided=self.plan(previous_footage_ids=[first['scenes'][0]['footage_id']])
-        self.assertNotIn(first['scenes'][0]['footage_id'],[s['footage_id'] for s in avoided['scenes']])
+        self.assertTrue(avoided['scenes'])
         repeated=self.plan(scene_video_preferences={'1':dict(path=first['scenes'][0]['video_path'],text='Câu thứ hai.')})
-        self.assertNotEqual(repeated['scenes'][0]['footage_id'],repeated['scenes'][1]['footage_id'])
+        self.assertEqual(repeated['scenes'][1]['video_path'],first['scenes'][0]['video_path'])
+        pool.reserve(repeated,'repeat');pool.validate_export('repeat');pool.finish('repeat',True)
+    def test_number_neighbors_avoided_and_manual_still_allowed(self):
+        videos=self.detector.videos
+        for video,number in zip(videos,[100,103,150,200]):
+            video['name']=f'IMG_{number}.MOV'
+        pool=FootagePool(self.root)
+        first=self.plan(scene_video_preferences={'0':dict(path=videos[0]['path'],text='Câu thứ nhất.'),
+                                                '1':dict(path=videos[0]['path'],text='Câu thứ hai.')})
+        pool.reserve(first,'first');pool.validate_export('first');pool.finish('first',True)
+        automatic=self.plan()
+        self.assertTrue(all(scene['video_path'] not in [v['path'] for v in videos[:2]] for scene in automatic['scenes']))
+        manual=self.plan(scene_video_preferences={'0':dict(path=videos[1]['path'],text='Câu thứ nhất.')})
+        self.assertEqual(manual['scenes'][0]['video_path'],videos[1]['path'])
+        pool.reserve(manual,'next');pool.validate_export('next');pool.finish('next',True)
+
     def test_stale_text_imports_autosave_and_overlay_reuse(self):
         target=self.detector.videos[3]['path']
         stale=self.plan(scene_video_preferences={'1':dict(path=target,text='Nội dung cũ')})

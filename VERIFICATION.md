@@ -189,3 +189,11 @@ Nguồn và tài liệu được quản lý trong repo `ngonco/AutoReel_SachHayM
 
 ## 2026-11-03 — Footage selection
 Random footage excludes the current clip and ineligible choices. Manual ineligible choices report the server reason immediately. Fair-use planning and footage history are preserved. Launcher targets AutoReelSachHay_v13_1.exe to preserve running v13 sessions. Start Menu shortcut targets the stable VBS launcher. Node UI and draft-player checks passed; packaged launcher/preview/restart verification passed on isolated profile. Footage UI regression passed against JavaScript served by the final packaged EXE. Build completed with python -X utf8 build_onefile.py. Start Menu Programs shortcut installed; pinned-grid placement not verified.
+
+
+## 2026-11-03 — Manual override correction (v14)
+- Passed 21 Python checks: tests.test_persistence and tests.test_v10, including high-count manual choice, repeat override, reservation validation, numeric-neighbor avoidance, successful count commits and stale scene text.
+- Passed Node fast-preview UI and draft-player checks. Removed the manual ineligible-choice rejection introduced in the preceding change.
+- Rebuilt final application with python -X utf8 build_onefile.py as AutoReelSachHay_v14.exe; stable launchers updated, running v13/v13_1 preserved.
+- verify_manual_footage.py passed through packaged VBS launcher: tracked Full HD export of manually selected IMG_100, automatic next plan excludes IMG_100/IMG_103, manual IMG_103 still accepted and successfully exported; exactly two history counts recorded. Test uses a fresh isolated workspace and synthetic media. Actual footage history and draft preserved.
+- Numeric proximity defaults to <=5 in the final number group of the filename, with existing limited-library fallback. Explicit choices override automatic avoidance.
